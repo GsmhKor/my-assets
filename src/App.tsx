@@ -11,11 +11,13 @@ import { downloadBackup, parseBackup } from './services/backup'
 import homeCat from './assets/cat-tab-home.png'
 import assetsCat from './assets/cat-tab-bills.png'
 import historyCat from './assets/cat-tab-stats.png'
-import happyCat from './assets/cat-income-investment.png'
+import settingsCat from './assets/cat-tab-settings.png'
+import emptyAssetsCat from './assets/cat-empty-bills.webp'
+import settingsPrivacyCat from './assets/cat-settings-privacy.webp'
 import './App.css'
 
 type Tab = 'home' | 'assets' | 'history' | 'settings'
-const tabs: { id: Tab; label: string; image?: string }[] = [{ id: 'home', label: '首页', image: homeCat }, { id: 'assets', label: '资产', image: assetsCat }, { id: 'history', label: '历史', image: historyCat }, { id: 'settings', label: '设置' }]
+const tabs: { id: Tab; label: string; image?: string }[] = [{ id: 'home', label: '首页', image: homeCat }, { id: 'assets', label: '资产', image: assetsCat }, { id: 'history', label: '历史', image: historyCat }, { id: 'settings', label: '设置', image: settingsCat }]
 function preference(key: string, fallback: string) { try { return localStorage.getItem(`my-assets-${key}`) ?? fallback } catch { return fallback } }
 function remember(key: string, value: string) { try { localStorage.setItem(`my-assets-${key}`, value) } catch { /* storage may be unavailable */ } }
 function errorText(error: unknown) { return error instanceof Error ? error.message : '操作失败，请重试。' }
@@ -133,12 +135,12 @@ export default function App() {
         {tab === 'assets' && <>
           <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>
           <div className="section-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2></div>
-          <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={happyCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
+          <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
         </>}
         {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onEdit={editHistorical} />}
         {tab === 'settings' && <>
           <div className="section-heading"><h1>设置</h1></div>
-          <section className="card privacy"><img src={happyCat} alt="" /><div><h2>资产只保存在这里</h2><p>金额和来源留在本设备。联网仅查询汇率，请定期备份。</p></div></section>
+          <section className="card privacy"><img src={settingsPrivacyCat} alt="" /><div><h2>资产只保存在这里</h2><p>金额和来源留在本设备。联网仅查询汇率，请定期备份。</p></div></section>
           <h2 className="settings-heading">数据与备份</h2><section className="card settings-list"><button onClick={() => downloadBackup(ledger)} disabled={busy}><Icon name="download" /><span>导出完整 JSON 备份<small>包括资产、每日快照和历史汇率</small></span></button><button disabled={busy} onClick={() => importInput.current?.click()}><Icon name="upload" /><span>从备份恢复<small>覆盖当前资金账本的数据</small></span></button><input ref={importInput} type="file" hidden accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void restore(file) }} /></section>
           <h2 className="settings-heading">外观</h2><section className="card settings-list"><label className="setting-row"><Icon name="moon" /><span>深色模式</span><input type="checkbox" role="switch" checked={dark} onChange={event => setDark(event.target.checked)} /></label></section>
           <h2 className="settings-heading">汇率</h2><section className="card rate-settings"><p>自动获取 Frankfurter 最新参考价；断网时使用上次汇率。历史快照始终保留保存时的汇率。</p><form onSubmit={event => { event.preventDefault(); const next: Rate = { cnyToJpy: Number(manualRate), date: localDay(), fetchedAt: new Date().toISOString(), source: '手动' }; if (!validRate(next)) { setMessage('请输入 0.01～1000 之间的有效汇率。'); return } setRate(next); cacheRate(next); setRateError(''); setMessage('手动汇率已应用。下次自动更新成功时使用联网报价。') }}><label className="field">手动填写：1 人民币等于多少日元<input inputMode="decimal" placeholder="例如 20.00" value={manualRate} onChange={event => setManualRate(event.target.value)} /></label><button className="secondary-button" disabled={rateBusy}>使用此汇率</button></form><a href="https://frankfurter.dev/" target="_blank" rel="noreferrer">查看汇率来源</a></section>

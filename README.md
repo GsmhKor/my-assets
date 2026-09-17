@@ -45,4 +45,4 @@ npm run build
 
 GitHub 仓库的 Settings → Pages → Source 选择 GitHub Actions。推送 `main` 运行 `.github/workflows/deploy.yml`。默认部署路径为 `/my-assets/`，自定义时设置 `VITE_BASE_PATH`（必须包含起止 `/`）。不需要后端或 API 密钥。
 
-版本：1.2.2。添加到主屏幕时默认名称为「我的资金 1.2.2」；安装名称与设置页版本统一读取 `package.json`。界面沿用原账本的奶油色和猫咪图片，素材说明见 `design/assets.md`。
+版本：1.3.0。添加到主屏幕时默认名称为「我的资金 1.3.0」；安装名称与设置页版本统一读取 `package.json`。界面沿用原账本的奶油色和猫咪图片，素材说明见 `design/assets.md`。
