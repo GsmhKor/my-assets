@@ -46,7 +46,7 @@ export function AssetEditor({ asset, currency: initialCurrency, onClose, onSave,
       <header className="editor-heading"><button className="icon-button" type="button" aria-label="关闭" onClick={close} disabled={busy}><Icon name="close" /></button><h2 id="editor-title">{asset ? '更新资产余额' : '记一笔资产'}</h2><span /></header>
       <form onSubmit={event => { event.preventDefault(); void submit() }}>
         <fieldset disabled={busy}>
-          <label className="field">资产来源<input autoFocus required maxLength={60} placeholder="自己填写，例如支付宝、银行、现金" value={source} onChange={event => setSource(event.target.value)} /></label>
+          <label className="field">资产来源<input autoFocus required maxLength={60} value={source} onChange={event => setSource(event.target.value)} /></label>
           <div className="currency-switch compact" role="group" aria-label="本笔资产币种">
             {(['JPY', 'CNY'] as const).map(value => <button key={value} type="button" aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}>{currencyName(value)} <small>{value}</small></button>)}
           </div>

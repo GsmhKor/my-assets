@@ -23,8 +23,6 @@ export async function fetchRate(): Promise<Rate> {
   try {
     const response = await fetch('https://api.frankfurter.dev/v2/rate/CNY/JPY', { signal: controller.signal, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' })
     if (!response.ok) throw new Error('汇率服务暂时不可用。')
-    const rate = parseRateResponse(await response.json())
-    cacheRate(rate)
-    return rate
+    return parseRateResponse(await response.json())
   } finally { clearTimeout(timer) }
 }

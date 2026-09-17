@@ -3,7 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
 import { Icon } from './components/Icon'
-import { EMPTY_LEDGER, convertedTotal, currencyName, localDay, money, removeAsset, saveAsset, sumAssets, validRate } from './domain/ledger'
+import { EMPTY_LEDGER, convertedTotal, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchRate } from './services/rates'
@@ -47,6 +47,15 @@ export default function App() {
     try { const value = await readLedger(); ledgerRef.current = value; setLedger(value); setLoadError('') }
     catch { setLoadError('无法读取本地资产。请重试；已有数据不会被清空。') }
   }, [])
+  const mutate = useCallback(async (transform: (value: Ledger) => Ledger, revision = ledgerRef.current?.revision) => {
+    if (revision === undefined || mutationPending.current) throw new Error('正在处理其他操作，请稍后再试。')
+    mutationPending.current = true; setBusy(true)
+    try {
+      const value = await changeLedger(revision, transform)
+      ledgerRef.current = value; setLedger(value); setToday(localDay()); channel.current?.postMessage('changed')
+    } catch (error) { await reload(); throw error }
+    finally { mutationPending.current = false; setBusy(false) }
+  }, [reload])
   useEffect(() => { void reload() }, [reload])
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return
@@ -54,13 +63,21 @@ export default function App() {
     instance.onmessage = () => { void reload() }
     return () => { instance.close(); channel.current = null }
   }, [reload])
-  const refreshRate = useCallback(async () => {
-    if (ratePending.current) return
+  const refreshRate = useCallback(async (syncToday = false) => {
+    if (ratePending.current || mutationPending.current) return
     ratePending.current = true; setRateBusy(true)
-    try { setRate(await fetchRate()); setRateError('') }
-    catch { setRateError('联网更新失败。有缓存时继续使用上次汇率，也可在设置中手动填写。') }
+    try {
+      let next: Rate
+      try { next = await fetchRate() }
+      catch { setRateError('联网更新失败。有缓存时继续使用上次汇率，也可在设置中手动填写。'); return }
+      if (syncToday && ledgerRef.current?.snapshots.length) {
+        try { await mutate(value => recordSnapshot(value, value.assets, next)) }
+        catch (error) { setRateError(`刷新未完成，今日历史未更新：${errorText(error)}`); return }
+      }
+      cacheRate(next); setRate(next); setRateError(''); setToday(localDay())
+    }
     finally { ratePending.current = false; setRateBusy(false) }
-  }, [])
+  }, [mutate])
   useEffect(() => {
     void refreshRate()
     const foreground = () => { setToday(localDay()); if (!document.hidden) { void reload(); void refreshRate() } }
@@ -72,15 +89,6 @@ export default function App() {
   useEffect(() => { remember('currency', currency) }, [currency])
   useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; remember('theme', dark ? 'dark' : 'light') }, [dark])
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
-  async function mutate(transform: (value: Ledger) => Ledger, revision = ledgerRef.current?.revision) {
-    if (revision === undefined || mutationPending.current) throw new Error('正在处理其他操作，请稍后再试。')
-    mutationPending.current = true; setBusy(true)
-    try {
-      const value = await changeLedger(revision, transform)
-      ledgerRef.current = value; setLedger(value); setToday(localDay()); channel.current?.postMessage('changed')
-    } catch (error) { await reload(); throw error }
-    finally { mutationPending.current = false; setBusy(false) }
-  }
   function edit(asset?: Asset) { if (ledger && !busy) setEditor({ asset, revision: ledger.revision }) }
   function editHistorical(asset: Asset) {
     const existing = ledger?.assets.find(item => item.id === asset.id)
@@ -118,7 +126,7 @@ export default function App() {
         {(tab === 'home' || tab === 'history') && <div className="currency-switch" role="group" aria-label="登记与统计币种">{(['JPY', 'CNY'] as const).map(value => <button key={value} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}><span>{currencyName(value)}</span><small>{value}</small></button>)}</div>}
         {tab === 'home' && <>
           <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><strong className={`balance-value money${(total ?? 0) < 0 ? ' negative' : ''}`} data-testid="total">{money(total, currency, 0)}</strong><p className="balance-caption">两种币种合并折算 · 含负债</p><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
-          <div className="rate-panel"><div><strong>{rate ? `1 人民币 = ${rate.cnyToJpy.toFixed(4)} 日元` : '正在等待可用汇率'}</strong><small>{rate ? `${rate.source} · 报价 ${rate.date} · 获取 ${new Date(rate.fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '没有汇率时，仍可保存原币余额。'}</small></div><button className="text-button" disabled={rateBusy} onClick={() => void refreshRate()}>{rateBusy ? '更新中…' : '刷新'}</button></div>
+          <div className="rate-panel"><div><strong>{rate ? `1 人民币 = ${rate.cnyToJpy.toFixed(4)} 日元` : '正在等待可用汇率'}</strong><small>{rate ? `${rate.source} · 报价 ${rate.date} · 获取 ${new Date(rate.fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '没有汇率时，仍可保存原币余额。'}</small></div><button className="text-button" disabled={rateBusy || busy} onClick={() => void refreshRate(true)}>{rateBusy ? '更新中…' : '刷新'}</button></div>
           {rateError && <p className="notice small" role="status">{rateError}</p>}
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请刷新或在设置中填写汇率。</p>}
         </>}
@@ -133,7 +141,7 @@ export default function App() {
           <section className="card privacy"><img src={happyCat} alt="" /><div><h2>资产只保存在这里</h2><p>金额和来源留在本设备。联网仅查询汇率，请定期备份。</p></div></section>
           <h2 className="settings-heading">数据与备份</h2><section className="card settings-list"><button onClick={() => downloadBackup(ledger)} disabled={busy}><Icon name="download" /><span>导出完整 JSON 备份<small>包括资产、每日快照和历史汇率</small></span></button><button disabled={busy} onClick={() => importInput.current?.click()}><Icon name="upload" /><span>从备份恢复<small>覆盖当前资金账本的数据</small></span></button><input ref={importInput} type="file" hidden accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void restore(file) }} /></section>
           <h2 className="settings-heading">外观</h2><section className="card settings-list"><label className="setting-row"><Icon name="moon" /><span>深色模式</span><input type="checkbox" role="switch" checked={dark} onChange={event => setDark(event.target.checked)} /></label></section>
-          <h2 className="settings-heading">汇率</h2><section className="card rate-settings"><p>自动获取 Frankfurter 最新参考价；断网时使用上次汇率。历史快照始终保留保存时的汇率。</p><form onSubmit={event => { event.preventDefault(); const next: Rate = { cnyToJpy: Number(manualRate), date: localDay(), fetchedAt: new Date().toISOString(), source: '手动' }; if (!validRate(next)) { setMessage('请输入 0.01～1000 之间的有效汇率。'); return } setRate(next); cacheRate(next); setRateError(''); setMessage('手动汇率已应用。下次自动更新成功时使用联网报价。') }}><label className="field">手动填写：1 人民币等于多少日元<input inputMode="decimal" placeholder="例如 20.50" value={manualRate} onChange={event => setManualRate(event.target.value)} /></label><button className="secondary-button" disabled={rateBusy}>使用此汇率</button></form><a href="https://frankfurter.dev/" target="_blank" rel="noreferrer">查看汇率来源</a></section>
+          <h2 className="settings-heading">汇率</h2><section className="card rate-settings"><p>自动获取 Frankfurter 最新参考价；断网时使用上次汇率。历史快照始终保留保存时的汇率。</p><form onSubmit={event => { event.preventDefault(); const next: Rate = { cnyToJpy: Number(manualRate), date: localDay(), fetchedAt: new Date().toISOString(), source: '手动' }; if (!validRate(next)) { setMessage('请输入 0.01～1000 之间的有效汇率。'); return } setRate(next); cacheRate(next); setRateError(''); setMessage('手动汇率已应用。下次自动更新成功时使用联网报价。') }}><label className="field">手动填写：1 人民币等于多少日元<input inputMode="decimal" placeholder="例如 20.00" value={manualRate} onChange={event => setManualRate(event.target.value)} /></label><button className="secondary-button" disabled={rateBusy}>使用此汇率</button></form><a href="https://frankfurter.dev/" target="_blank" rel="noreferrer">查看汇率来源</a></section>
           <h2 className="settings-heading">数据管理</h2><section className="card settings-list"><button className="negative" disabled={busy || !ledger.snapshots.length} onClick={() => void clear()}><Icon name="trash" /><span>清空全部资产及历史<small>此操作需要两次确认</small></span></button></section><p className="app-info">资金账本 · {__APP_VERSION__}<br />日元 / 人民币 · 本地保存</p>
         </>}
       </>}

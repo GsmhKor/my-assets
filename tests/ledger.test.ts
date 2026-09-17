@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { EMPTY_LEDGER, convertedTotal, historyBetween, parseAmount, removeAsset, saveAsset } from '../src/domain/ledger.ts'
+import { EMPTY_LEDGER, convertedTotal, historyBetween, parseAmount, recordSnapshot, removeAsset, saveAsset, sumAssets } from '../src/domain/ledger.ts'
 import type { Rate } from '../src/domain/ledger.ts'
 import { exportBackup, parseBackup } from '../src/services/backup.ts'
 
@@ -58,4 +58,39 @@ test('backup restores data and rejects incorrect totals or other app formats', (
   broken.data.snapshots[0].totals.CNY = 1
   assert.throws(() => parseBackup(JSON.stringify(broken), '2026-09-17'))
   assert.throws(() => parseBackup(text.replace('my-assets', 'my-ledger'), '2026-09-17'))
+})
+
+test('refreshing a rate replaces only today and keeps current balances unchanged', () => {
+  const original = saveAsset(create(), { source: 'JPY account', currency: 'JPY', amount: '1000' }, rate, second, 'two')
+  const before = structuredClone(original)
+  const freshRate: Rate = { ...rate, cnyToJpy: 21, date: '2026-09-16', fetchedAt: second.toISOString() }
+  const refreshed = recordSnapshot(original, original.assets, freshRate, second)
+  assert.equal(refreshed.snapshots.length, 2)
+  assert.deepEqual(refreshed.snapshots[0], before.snapshots[0])
+  assert.deepEqual(refreshed.assets, before.assets)
+  assert.deepEqual(original, before)
+  const today = refreshed.snapshots.at(-1)!
+  assert.equal(today.rate?.cnyToJpy, 21)
+  assert.equal(convertedTotal(today.totals, 'JPY', today.rate), 3105)
+  assert.equal(convertedTotal(today.totals, 'CNY', today.rate), 14787)
+  for (const currency of ['JPY', 'CNY'] as const) {
+    assert.equal(convertedTotal(today.totals, currency, today.rate), convertedTotal(sumAssets(refreshed.assets), currency, freshRate))
+  }
+  assert.deepEqual(parseBackup(exportBackup(refreshed), '2026-09-16').snapshots, refreshed.snapshots)
+  const again = recordSnapshot(refreshed, refreshed.assets, { ...freshRate, cnyToJpy: 22 }, second)
+  assert.equal(again.snapshots.length, 2)
+  assert.equal(again.snapshots.at(-1)?.rate?.cnyToJpy, 22)
+  assert.deepEqual(again.snapshots[0], before.snapshots[0])
+})
+
+test('refreshing on a new day creates today without repricing previous carried days', () => {
+  const original = create()
+  const third = new Date(2026, 8, 17, 12)
+  const refreshed = recordSnapshot(original, original.assets, { ...rate, cnyToJpy: 21, fetchedAt: third.toISOString() }, third)
+  const points = historyBetween(refreshed.snapshots, '2026-09-15', '2026-09-17')
+  assert.deepEqual(points.map(point => point.snapshot.rate?.cnyToJpy), [20, 20, 21])
+  assert.deepEqual(points.map(point => point.carried), [false, true, false])
+  assert.equal(refreshed.snapshots.at(-1)?.day, '2026-09-17')
+  assert.deepEqual(refreshed.assets, original.assets)
+  assert.deepEqual(refreshed.snapshots[0], original.snapshots[0])
 })
