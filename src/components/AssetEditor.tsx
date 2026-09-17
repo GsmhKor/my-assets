@@ -52,7 +52,7 @@ export function AssetEditor({ asset, currency: initialCurrency, onClose, onSave,
           </div>
           <label className="field amount-input">当前余额 · {currencyName(currency)}<input required inputMode="decimal" placeholder="0" value={amount} onChange={event => setAmount(event.target.value)} aria-describedby="amount-help" /></label>
           <div className="amount-tools"><button className="text-button" type="button" onClick={() => setAmount(value => value.startsWith('-') ? value.slice(1) : `-${value}`)}>切换正负 ±</button><small id="amount-help">{currency === 'JPY' ? '整数日元' : '最多两位小数'}，负数表示负债</small></div>
-          <p className="editor-note">保存日期：{localDay()}<br />保存后以这笔余额计算当前资产，同一天保留最后一次结果，此前日期的快照保留。</p>
+          <p className="editor-note">保存日期：{localDay()}</p>
           {error && <p className="error-message" role="alert">{error}</p>}
           <button className="primary-button" type="submit">{busy ? '正在保存…' : '保存今日余额'}</button>
           {asset?.id && <button className="danger-button" type="button" onClick={() => void remove()}>删除这条资产</button>}
