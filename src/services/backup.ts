@@ -52,7 +52,7 @@ export function exportBackup(ledger: Ledger) {
 export function downloadBackup(ledger: Ledger) {
   const url = URL.createObjectURL(new Blob([exportBackup(ledger)], { type: 'application/json' }))
   const anchor = document.createElement('a')
-  anchor.href = url; anchor.download = `my-assets-${localDay()}.json`
+  anchor.href = url; anchor.download = '我的账本-完整备份.json'
   document.body.append(anchor); anchor.click(); anchor.remove()
   setTimeout(() => URL.revokeObjectURL(url), 60000)
 }

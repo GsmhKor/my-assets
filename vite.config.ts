@@ -1,14 +1,21 @@
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 const base = process.env.VITE_BASE_PATH ?? '/my-assets/'
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
+const installName = `我的账本 ${version}`
 export default defineConfig({
   base,
-  plugins: [react(), VitePWA({
+  define: { __APP_VERSION__: JSON.stringify(version) },
+  plugins: [react(), {
+    name: 'app-install-name',
+    transformIndexHtml: (html) => html.replaceAll('__APP_INSTALL_NAME__', installName),
+  }, VitePWA({
     registerType: 'prompt',
     includeAssets: ['apple-touch-icon.png'],
     manifest: {
-      id: base, name: '资金账本', short_name: '资金账本',
+      id: base, name: installName, short_name: installName,
       description: '日元与人民币双币种资产统计，保存每日总资产', lang: 'zh-CN',
       start_url: base, scope: base, display: 'standalone',
       background_color: '#fff9ed', theme_color: '#fff9ed', categories: ['finance', 'productivity'],

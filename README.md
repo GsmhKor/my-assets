@@ -26,6 +26,8 @@ IndexedDB 数据库名 `my-assets-db`；偏好、汇率缓存和跨窗口通信�
 
 请定期在设置中导出 JSON 备份。恢复会覆盖本应用全部资产与历史；不支持导入原收支账本的备份。查汇率仅发送币种，不发送资产来源与金额。
 
+导出文件名固定为 `我的账本-完整备份.json`，是否覆盖旧文件由系统保存窗口处理。备份内容仍标识为 `my-assets`。
+
 ## 开发与部署
 
 Node.js 22.18+（推荐最新 Node 22 LTS）。
@@ -41,4 +43,4 @@ npm run build
 
 GitHub 仓库的 Settings → Pages → Source 选择 GitHub Actions。推送 `main` 运行 `.github/workflows/deploy.yml`。默认部署路径为 `/my-assets/`，自定义时设置 `VITE_BASE_PATH`（必须包含起止 `/`）。不需要后端或 API 密钥。
 
-版本：1.0.0。界面沿用原账本的奶油色和猫咪图片，素材说明见 `design/assets.md`。
+版本：1.2.0。添加到主屏幕时默认名称为「我的账本 1.2.0」；安装名称与设置页版本统一读取 `package.json`。界面沿用原账本的奶油色和猫咪图片，素材说明见 `design/assets.md`。
