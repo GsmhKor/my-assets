@@ -50,8 +50,8 @@ export function AssetEditor({ asset, currency: initialCurrency, onClose, onSave,
           <div className="currency-switch compact" role="group" aria-label="本笔资产币种">
             {(['JPY', 'CNY'] as const).map(value => <button key={value} type="button" aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}>{currencyName(value)} <small>{value}</small></button>)}
           </div>
-          <label className="field amount-input">当前余额 · {currencyName(currency)}<input required inputMode="decimal" placeholder="0" value={amount} onChange={event => setAmount(event.target.value)} aria-describedby="amount-help" /></label>
-          <div className="amount-tools"><button className="text-button" type="button" onClick={() => setAmount(value => value.startsWith('-') ? value.slice(1) : `-${value}`)}>切换正负 ±</button><small id="amount-help">{currency === 'JPY' ? '整数日元' : '最多两位小数'}，负数表示负债</small></div>
+          <label className="field amount-input">当前余额 · {currencyName(currency)}<input required inputMode="numeric" pattern="-?[0-9]+" placeholder="0" value={amount} onChange={event => setAmount(event.target.value)} aria-describedby="amount-help" /></label>
+          <div className="amount-tools"><button className="text-button" type="button" onClick={() => setAmount(value => value.startsWith('-') ? value.slice(1) : `-${value}`)}>切换正负 ±</button><small id="amount-help">整数{currencyName(currency)}，负数表示负债</small></div>
           <p className="editor-note">保存日期：{localDay()}</p>
           {error && <p className="error-message" role="alert">{error}</p>}
           <button className="primary-button" type="submit">{busy ? '正在保存…' : '保存今日余额'}</button>

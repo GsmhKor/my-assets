@@ -47,15 +47,13 @@ export function shiftDay(day: string, delta: number) {
 export function currencyName(currency: Currency) { return currency === 'JPY' ? '日元' : '人民币' }
 export function parseAmount(input: string, currency: Currency): number {
   const value = input.trim().replace(/−/g, '-')
-  const pattern = currency === 'JPY' ? /^-?\d+$/ : /^-?\d+(?:\.\d{1,2})?$/
-  if (!pattern.test(value)) throw new Error(currency === 'JPY' ? '日元请输入整数，可为负数或零。' : '人民币最多保留两位小数，可为负数或零。')
-  const [whole, fraction = ''] = value.replace('-', '').split('.')
-  const units = BigInt(whole) * (currency === 'JPY' ? 1n : 100n) + (currency === 'JPY' ? 0n : BigInt(fraction.padEnd(2, '0')))
+  if (!/^-?\d+$/.test(value)) throw new Error(`${currencyName(currency)}请输入整数，可为负数或零。`)
+  const units = BigInt(value.replace('-', '')) * (currency === 'JPY' ? 1n : 100n)
   if (units > BigInt(MAX_AMOUNT_MINOR)) throw new Error('金额过大，请检查输入。')
   return Number(value.startsWith('-') ? -units : units)
 }
 export function amountInput(asset: Asset) {
-  return asset.currency === 'JPY' ? String(asset.amountMinor) : (asset.amountMinor / 100).toFixed(2)
+  return asset.currency === 'JPY' ? String(asset.amountMinor) : (asset.amountMinor / 100).toFixed(0)
 }
 export function sumAssets(assets: Asset[]): Totals {
   const totals = { JPY: 0, CNY: 0 }
@@ -92,7 +90,7 @@ export function convertedTotal(totals: Totals, currency: Currency, rate: Rate | 
   if (!Number.isSafeInteger(number)) throw new Error('折算金额过大，无法精确显示。')
   return number
 }
-export function money(minor: number | null, currency: Currency, fractionDigits = currency === 'JPY' ? 0 : 2): string {
+export function money(minor: number | null, currency: Currency, fractionDigits = 0): string {
   if (minor === null) return '待汇率'
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, currencyDisplay: 'code', minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(minor / (currency === 'JPY' ? 1 : 100))
 }

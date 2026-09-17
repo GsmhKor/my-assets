@@ -1,24 +1,46 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { EMPTY_LEDGER, convertedTotal, historyBetween, parseAmount, recordSnapshot, removeAsset, saveAsset, sumAssets } from '../src/domain/ledger.ts'
-import type { Rate } from '../src/domain/ledger.ts'
+import { EMPTY_LEDGER, amountInput, convertedTotal, historyBetween, parseAmount, recordSnapshot, removeAsset, saveAsset, sumAssets } from '../src/domain/ledger.ts'
+import type { Asset, Rate } from '../src/domain/ledger.ts'
 import { exportBackup, parseBackup } from '../src/services/backup.ts'
 
 const first = new Date(2026, 8, 15, 12)
 const second = new Date(2026, 8, 16, 12)
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-15', fetchedAt: first.toISOString(), source: 'Frankfurter' }
-const create = () => saveAsset(EMPTY_LEDGER, { source: '自己填写的来源', currency: 'CNY', amount: '100.25' }, rate, first, 'one')
+// Legacy fractional balances remain compatible with stored snapshots and backups.
+const create = () => {
+  const asset: Asset = { id: 'one', source: '自己填写的来源', currency: 'CNY', amountMinor: 10025, updatedDay: '2026-09-15', updatedAt: first.toISOString() }
+  return recordSnapshot(EMPTY_LEDGER, [asset], rate, first)
+}
 
 test('negative balances, precision and two-way conversion', () => {
-  assert.equal(parseAmount('-100.25', 'CNY'), -10025)
+  assert.equal(parseAmount('-100', 'CNY'), -10000)
+  assert.equal(parseAmount('100', 'CNY'), 10000)
+  assert.equal(parseAmount('0', 'CNY'), 0)
   assert.equal(parseAmount('-2000', 'JPY'), -2000)
   assert.throws(() => parseAmount('1.1', 'JPY'))
   assert.throws(() => parseAmount('1.001', 'CNY'))
+  assert.throws(() => parseAmount('1.25', 'CNY'))
+  assert.throws(() => parseAmount('1.00', 'CNY'))
   assert.equal(convertedTotal({ JPY: -1000, CNY: 10025 }, 'JPY', rate), 1005)
   assert.equal(convertedTotal({ JPY: -1000, CNY: 10025 }, 'CNY', rate), 5025)
   assert.equal(convertedTotal({ JPY: -1, CNY: 0 }, 'CNY', { ...rate, cnyToJpy: 200 }), -1)
   assert.equal(convertedTotal({ JPY: 1, CNY: 100 }, 'JPY', null), null)
   assert.equal(convertedTotal({ JPY: -1000, CNY: 0 }, 'JPY', null), -1000)
+})
+
+test('editing legacy CNY rounds to whole yuan and saves without changing previous history', () => {
+  for (const [minor, expected] of [[10049, '100'], [10050, '101'], [-10049, '-100'], [-10050, '-101']] as const) {
+    const asset = { ...create().assets[0], amountMinor: minor }
+    const original = recordSnapshot(EMPTY_LEDGER, [asset], rate, first)
+    const amount = amountInput(asset)
+    assert.equal(amount, expected)
+    const changed = saveAsset(original, { id: asset.id, source: asset.source, currency: 'CNY', amount }, rate, second)
+    assert.equal(changed.assets[0].amountMinor, Number(expected) * 100)
+    assert.equal(changed.snapshots[0].assets[0].amountMinor, minor)
+    assert.deepEqual(parseBackup(exportBackup(changed), '2026-09-16').snapshots, changed.snapshots)
+  }
+  assert.throws(() => saveAsset(EMPTY_LEDGER, { source: 'New account', currency: 'CNY', amount: '100.25' }, rate, first, 'new'))
 })
 test('editing replaces balance, dates it today, and preserves older snapshots', () => {
   const original = create()
