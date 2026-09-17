@@ -3,7 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
 import { Icon } from './components/Icon'
-import { EMPTY_LEDGER, convertedTotal, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, sumAssets, validRate } from './domain/ledger'
+import { EMPTY_LEDGER, convertedTotal, currencyName, localDay, money, removeAsset, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchRate } from './services/rates'
@@ -88,7 +88,6 @@ export default function App() {
   }
   async function save(draft: Draft) { await mutate(value => saveAsset(value, draft, rate), editor?.revision); setMessage('已保存今日余额与总资产快照。') }
   async function remove(id: string) { await mutate(value => removeAsset(value, id, rate), editor?.revision); setMessage('已从当前资产移除，之前的快照仍保留。') }
-  async function snapshot() { try { await mutate(value => recordSnapshot(value, value.assets, rate)); setMessage('已按当前余额与汇率保存今日快照。') } catch (error) { setMessage(errorText(error)) } }
   async function restore(file: File) {
     const revision = ledgerRef.current?.revision
     try {
@@ -113,19 +112,18 @@ export default function App() {
   }
   return <div className="app-shell">
     <main className="page">
-      <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" /><div><strong>资金账本</strong><small>把每一份积累，认真收好</small></div></div><span className="local-badge">本地保存</span></header>
+      <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" /><div><strong>资金账本</strong></div></div><span className="local-badge">本地保存</span></header>
       {needRefresh && !editor && <div className="notice">新版本已就绪<button className="text-button" disabled={busy} onClick={() => void updateServiceWorker(true)}>更新应用</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {tab !== 'settings' && <div className="currency-switch" role="group" aria-label="登记与统计币种">{(['JPY', 'CNY'] as const).map(value => <button key={value} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}><span>{currencyName(value)}</span><small>{value}</small></button>)}</div>}
         {(tab === 'home' || tab === 'assets') && <>
-          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">{tab === 'home' ? '我的总资产' : '当前资产合计'} · {currencyName(currency)}</p><strong className={`balance-value money${(total ?? 0) < 0 ? ' negative' : ''}`} data-testid="total">{money(total, currency)}</strong><p className="balance-caption">两种币种合并折算 · 含负债</p><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY')}</b></div></div></section>
+          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">{tab === 'home' ? '我的总资产' : '当前资产合计'} · {currencyName(currency)}</p><strong className={`balance-value money${(total ?? 0) < 0 ? ' negative' : ''}`} data-testid="total">{money(total, currency, tab === 'home' ? 0 : undefined)}</strong><p className="balance-caption">两种币种合并折算 · 含负债</p><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', tab === 'home' ? 0 : undefined)}</b></div></div></section>
           <div className="rate-panel"><div><strong>{rate ? `1 人民币 = ${rate.cnyToJpy.toFixed(4)} 日元` : '正在等待可用汇率'}</strong><small>{rate ? `${rate.source} · 报价 ${rate.date} · 获取 ${new Date(rate.fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '没有汇率时，仍可保存原币余额。'}</small><small>联网自动更新参考汇率，非秒级行情</small></div><button className="text-button" disabled={rateBusy} onClick={() => void refreshRate()}>{rateBusy ? '更新中…' : '刷新'}</button></div>
           {rateError && <p className="notice small" role="status">{rateError}</p>}
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请刷新或在设置中填写汇率。</p>}
           {tab === 'assets' && <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>}
           <div className="section-heading"><h2>{tab === 'home' ? '我的资产来源' : '资产明细'} <small>{ledger.assets.length} 项</small></h2>{tab === 'home' && ledger.assets.length > 5 && <button className="text-button" onClick={() => setTab('assets')}>查看全部</button>}</div>
           <section className="card assets-list">{visibleAssets.length ? assetRows(tab === 'home' ? visibleAssets.slice(0, 5) : visibleAssets) : <div className="empty"><img src={happyCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
-          {tab === 'home' && <div className="history-summary"><div><strong>今天的资产，留给未来看</strong><p>{ledger.snapshots.at(-1)?.day === today ? '今天的快照已保存；编辑资产会更新今日快照。' : '没有更新的日期，沿用上次保存的资产总额。'}</p></div><button className="text-button" disabled={busy || !ledger.snapshots.length} onClick={() => void snapshot()}>保存今日快照</button></div>}
         </>}
         {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onEdit={editHistorical} />}
         {tab === 'settings' && <>

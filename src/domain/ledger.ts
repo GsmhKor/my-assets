@@ -92,9 +92,9 @@ export function convertedTotal(totals: Totals, currency: Currency, rate: Rate | 
   if (!Number.isSafeInteger(number)) throw new Error('折算金额过大，无法精确显示。')
   return number
 }
-export function money(minor: number | null, currency: Currency): string {
+export function money(minor: number | null, currency: Currency, fractionDigits = currency === 'JPY' ? 0 : 2): string {
   if (minor === null) return '待汇率'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, currencyDisplay: 'code', minimumFractionDigits: currency === 'JPY' ? 0 : 2, maximumFractionDigits: currency === 'JPY' ? 0 : 2 }).format(minor / (currency === 'JPY' ? 1 : 100))
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, currencyDisplay: 'code', minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(minor / (currency === 'JPY' ? 1 : 100))
 }
 function normalizeSource(value: string) { return value.normalize('NFKC').trim().toLocaleLowerCase() }
 export function recordSnapshot(ledger: Ledger, assets: Asset[], rate: Rate | null, now = new Date()): Ledger {
