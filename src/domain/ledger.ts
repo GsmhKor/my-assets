@@ -119,6 +119,24 @@ export function removeAsset(ledger: Ledger, id: string, rate: Rate | null, now =
   if (!ledger.assets.some(asset => asset.id === id)) throw new Error('这条资产已不存在。')
   return recordSnapshot(ledger, ledger.assets.filter(asset => asset.id !== id), rate, now)
 }
+export function correctSnapshotAmount(ledger: Ledger, day: string, assetId: string, amount: string, now = new Date()): Ledger {
+  if (!validDay(day) || day > localDay(now)) throw new Error('请选择今天或之前的快照日期。')
+  const snapshot = ledger.snapshots.find(item => item.day === day)
+  if (!snapshot) throw new Error('此日期没有保存的快照，请重新打开历史记录。')
+  const asset = snapshot.assets.find(item => item.id === assetId)
+  if (!asset) throw new Error('这条资产不在所选快照中，请重新打开历史记录。')
+  const corrected = { ...asset, amountMinor: parseAmount(amount, asset.currency), updatedDay: day, updatedAt: now.toISOString() }
+  const assets = snapshot.assets.map(item => item.id === assetId ? corrected : item)
+  const totals = sumAssets(assets)
+  convertedTotal(totals, 'JPY', snapshot.rate)
+  convertedTotal(totals, 'CNY', snapshot.rate)
+  const updated = { ...snapshot, assets, totals, savedAt: now.toISOString() }
+  return {
+    revision: ledger.revision + 1,
+    assets: ledger.snapshots.at(-1)?.day === day ? structuredClone(assets) : ledger.assets,
+    snapshots: ledger.snapshots.map(item => item.day === day ? updated : item),
+  }
+}
 export interface HistoryPoint { day: string; snapshot: Snapshot; carried: boolean }
 export function historyBetween(snapshots: Snapshot[], from: string, to: string): HistoryPoint[] {
   if (!validDay(from) || !validDay(to) || from > to) return []
