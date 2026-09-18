@@ -9,6 +9,7 @@ import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchRate } from './services/rates'
 import { downloadBackup, parseBackup } from './services/backup'
+import { activateAppUpdate } from './services/appUpdate'
 import homeCat from './assets/cat-tab-home.png'
 import assetsCat from './assets/cat-tab-bills.png'
 import historyCat from './assets/cat-tab-stats.png'
@@ -36,22 +37,58 @@ export default function App() {
   const [rateError, setRateError] = useState('')
   const [today, setToday] = useState(localDay)
   const [editor, setEditor] = useState<{ asset?: Asset; revision: number; history?: { day: string; through: string; affectsCurrent: boolean } } | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [saving, setBusy] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const updatePending = useRef(false)
+  const [updateError, setUpdateError] = useState('')
+  const [activatedUpdate, setActivatedUpdate] = useState(false)
+  const [swRegistration, setSWRegistration] = useState<ServiceWorkerRegistration>()
+  const busy = saving || updating
   const mutationPending = useRef(false)
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [manualRate, setManualRate] = useState('')
   const importInput = useRef<HTMLInputElement>(null)
   const channel = useRef<BroadcastChannel | null>(null)
-  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({ onRegisteredSW(_url, registration) {
-    if (registration) document.addEventListener('visibilitychange', () => { if (!document.hidden) void registration.update().catch(() => {}) })
-  } })
+  const { needRefresh: [needRefresh, setNeedRefresh] } = useRegisterSW({
+    onRegisteredSW(_url, registration) { setSWRegistration(registration) },
+    // Keep reload under the button's control, including updates from other windows.
+    onNeedReload() { setActivatedUpdate(true) },
+  })
+  useEffect(() => {
+    if (!swRegistration) return
+    const check = () => {
+      if (document.hidden) return
+      if (swRegistration.waiting) setNeedRefresh(true)
+      void swRegistration.update().catch(() => {})
+    }
+    check()
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('pageshow', check)
+    window.addEventListener('online', check)
+    return () => {
+      document.removeEventListener('visibilitychange', check)
+      window.removeEventListener('pageshow', check)
+      window.removeEventListener('online', check)
+    }
+  }, [swRegistration, setNeedRefresh])
+  async function updateApp() {
+    if (mutationPending.current || updatePending.current || editor) return
+    updatePending.current = true; setUpdating(true); setUpdateError('')
+    try {
+      await activateAppUpdate(swRegistration)
+      window.location.reload()
+    } catch (error) {
+      setUpdateError(errorText(error))
+      updatePending.current = false; setUpdating(false)
+    }
+  }
   const reload = useCallback(async () => {
     try { const value = await readLedger(); ledgerRef.current = value; setLedger(value); setLoadError('') }
     catch { setLoadError('无法读取本地资产。请重试；已有数据不会被清空。') }
   }, [])
   const mutate = useCallback(async (transform: (value: Ledger) => Ledger, revision = ledgerRef.current?.revision) => {
-    if (revision === undefined || mutationPending.current) throw new Error('正在处理其他操作，请稍后再试。')
+    if (revision === undefined || mutationPending.current || updatePending.current) throw new Error('正在处理其他操作，请稍后再试。')
     mutationPending.current = true; setBusy(true)
     try {
       const value = await changeLedger(revision, transform)
@@ -139,7 +176,7 @@ export default function App() {
   return <div className="app-shell">
     <main className="page">
       <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" /><div><strong>资金账本</strong></div></div><span className="local-badge">本地保存</span></header>
-      {needRefresh && !editor && <div className="notice">新版本已就绪<button className="text-button" disabled={busy} onClick={() => void updateServiceWorker(true)}>更新应用</button></div>}
+      {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {(tab === 'home' || tab === 'history') && <div className="currency-switch" role="group" aria-label="登记与统计币种">{(['JPY', 'CNY'] as const).map(value => <button key={value} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}><span>{currencyName(value)}</span><small>{value}</small></button>)}</div>}
         {tab === 'home' && <>
