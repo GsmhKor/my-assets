@@ -43,11 +43,10 @@ Node.js 22.18+（推荐最新 Node 22 LTS）。
 ```sh
 npm ci
 npm run dev
-npm test
 npm run build
 ```
 
-开发地址包含 `/my-assets/`。`npm test` 包含金额、快照、历史延续、备份和历史图表渲染的关键测试，没有浏览器巡检。
+开发地址包含 `/my-assets/`。发布流程执行 `npm ci` 和 `npm run build`，通过 TypeScript 编译和生产打包检查后部署，不自动运行测试。
 
 GitHub 仓库的 Settings → Pages → Source 选择 GitHub Actions。推送 `main` 运行 `.github/workflows/deploy.yml`。默认部署路径为 `/my-assets/`，自定义时设置 `VITE_BASE_PATH`（必须包含起止 `/`）。不需要后端或 API 密钥。
 
