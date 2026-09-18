@@ -3,7 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
 import { Icon } from './components/Icon'
-import { balanceChange, moneyChangeClass } from './components/balanceChange'
+import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
 import { EMPTY_LEDGER, convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { changeLedger, readLedger } from './services/database'
@@ -72,7 +72,7 @@ export default function App() {
     try {
       let next: Rate
       try { next = await fetchRate() }
-      catch { setRateError('联网更新失败。有缓存时继续使用上次汇率，也可在设置中手动填写。'); return }
+      catch (error) { setRateError(`汇率更新失败：${errorText(error)} 有缓存时继续使用上次汇率，也可在设置中手动填写。`); return }
       if (syncToday && ledgerRef.current?.snapshots.length) {
         try { await mutate(value => recordSnapshot(value, value.assets, next)) }
         catch (error) { setRateError(`刷新未完成，今日历史未更新：${errorText(error)}`); return }
@@ -132,7 +132,7 @@ export default function App() {
       const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
       const change = balanceChange(asset, previous)
       return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source} ${asset.currency}`}>
-        <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span><span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)} · 更新于 {asset.updatedDay}</small></span><span className="asset-money money"><span className={`money${moneyChangeClass(change)}`}>{money(asset.amountMinor, asset.currency)}</span>{change !== null && <small className={`money${moneyChangeClass(change)}`}>较 {previous!.day} {change > 0 ? '+' : ''}{money(change, asset.currency)}</small>}{asset.currency !== currency ? <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small> : change === null && <small>点击更新余额</small>}</span><Icon name="chevron-right" size={15} />
+        <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span><span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)} · 更新于 {asset.updatedDay}</small></span><span className="asset-money money"><span className="money">{money(asset.amountMinor, asset.currency)}</span>{change !== null && <small className={`money${moneyChangeClass(change)}`}>较 {previous!.day} {formatMoneyChange(change, asset.currency)}</small>}{asset.currency !== currency ? <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small> : change === null && <small>点击更新余额</small>}</span><Icon name="chevron-right" size={15} />
       </button>
     })
   }

@@ -147,7 +147,6 @@ export function historyBetween(snapshots: Snapshot[], from: string, to: string):
   for (let day = from; day <= to; day = shiftDay(day, 1)) {
     while (index < ordered.length && ordered[index].day <= day) current = ordered[index++]
     if (current) points.push({ day, snapshot: current, carried: current.day !== day })
-    if (points.length > 3660) throw new Error('请缩小历史查询范围。')
   }
   return points
 }
