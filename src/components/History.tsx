@@ -3,7 +3,7 @@ import type { Currency, Ledger } from '../domain/ledger'
 import { convertedTotal, currencyName, historyBetween, money, shiftDay } from '../domain/ledger'
 import { Icon } from './Icon'
 
-const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { maximumSignificantDigits: 3 }).format(value)}%`
+const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}%`
 
 export function History({ ledger, currency, today }: { ledger: Ledger; currency: Currency; today: string }) {
   const [month, setMonth] = useState(today.slice(0, 7))

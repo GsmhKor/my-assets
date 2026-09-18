@@ -39,7 +39,7 @@ test('overlaid 100 to 103 and 50 to 51 lines show 3% versus 2% on one shared sca
       assert.ok(stats[index].includes('最高 ' + money(max * unit, currency)))
       assert.ok(stats[index].includes('最低 ' + money(min * unit, currency)))
       assert.ok(stats[index].includes('+' + money((max - min) * unit, currency)))
-      assert.ok(stats[index].includes('+' + percentage + '%'))
+      assert.ok(stats[index].includes('+' + percentage.toFixed(2) + '%'))
     }
   }
 })
@@ -80,13 +80,14 @@ test('zero starting balances do not invent a percentage, while monetary changes 
 test('negative balances, flat balances and single days produce finite meaningful percentages', () => {
   const improved = render([snapshot('2026-09-17', { JPY: -100, CNY: 0 }), snapshot('2026-09-18', { JPY: -50, CNY: 0 })])
   assert.equal(line(improved, 'total'), 'M 18 130 L 302 20')
-  assert.ok(improved.includes('+50%'))
+  assert.ok(improved.includes('+50.00%'))
   assert.ok(improved.includes('负债减少显示为正'))
   const declined = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 90, CNY: 0 })])
   assert.equal(line(declined, 'total'), 'M 18 20 L 302 130')
-  assert.ok(declined.includes('-10%'))
+  assert.ok(declined.includes('-10.00%'))
   const flat = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
   assert.equal(line(flat, 'total'), 'M 18 75 L 302 75')
+  assert.ok(flat.includes('0.00%'))
   const single = render([snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
   assert.equal(line(single, 'total'), 'M 18 75')
   assert.ok(!/NaN|Infinity/.test(single))
