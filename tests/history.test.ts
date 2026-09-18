@@ -5,83 +5,98 @@ import type { ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
 import type { ViteDevServer } from 'vite'
-import type { Asset, Currency, Draft, Ledger, Rate, Snapshot, Totals } from '../src/domain/ledger.ts'
+import type { Asset, Currency, Ledger, Rate, Snapshot, Totals } from '../src/domain/ledger.ts'
 import { money } from '../src/domain/ledger.ts'
 
 let server: ViteDevServer
-let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onEdit: () => void; onCorrect: () => void }>
-let AssetEditor: ComponentType<{ asset: Asset; history: { day: string; through: string; affectsCurrent: boolean }; currency: Currency; onClose: () => void; onSave: (draft: Draft) => Promise<void>; onDelete: (id: string) => Promise<void> }>
+let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onEdit: () => void }>
 before(async () => {
   server = await createServer({ server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' })
   History = (await server.ssrLoadModule('/src/components/History.tsx')).History
-  AssetEditor = (await server.ssrLoadModule('/src/components/AssetEditor.tsx')).AssetEditor
 })
 after(async () => { await server?.close() })
 
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-16', fetchedAt: '2026-09-16T00:00:00Z', source: 'Frankfurter' }
-const snapshot = (day: string, totals: Totals, savedRate: Rate | null = rate): Snapshot => ({ day, savedAt: `${day}T00:00:00Z`, assets: [], totals, rate: savedRate })
+const snapshot = (day: string, totals: Totals, savedRate: Rate | null = rate): Snapshot => ({ day, savedAt: day + 'T00:00:00Z', assets: [], totals, rate: savedRate })
 const render = (snapshots: Snapshot[], currency: Currency = 'JPY') => renderToStaticMarkup(createElement(History, {
-  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', onEdit: () => {}, onCorrect: () => {},
+  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', onEdit: () => {},
 }))
 const panels = (html: string) => [...html.matchAll(/<section class="history-series"[^>]*>(.*?)<\/section>/gs)].map(match => match[1])
+const line = (html: string, id: string) => html.match(new RegExp('d="([^"]*)" class="chart-line chart-line-' + id + '"'))?.[1]
 
-test('each history line has its own range and visible movement despite a tenfold balance difference', () => {
-  const snapshots = [snapshot('2026-09-17', { JPY: 100000, CNY: 4500000 }), snapshot('2026-09-18', { JPY: 101000, CNY: 4545000 })]
+test('overlaid 100 to 103 and 50 to 51 lines show 3% versus 2% on one shared scale in both currencies', () => {
   for (const currency of ['JPY', 'CNY'] as const) {
-    const charts = panels(render(snapshots, currency))
-    assert.equal(charts.length, 2)
-    const expected = currency === 'JPY' ? [[1000000, 1010000], [100000, 101000]] : [[5000000, 5050000], [4500000, 4545000]]
-    charts.forEach((chart, index) => {
-      const [min, max] = expected[index]
-      assert.ok(chart.includes(`最高 ${money(max, currency)}`))
-      assert.ok(chart.includes(`最低 ${money(min, currency)}`))
-      assert.ok(chart.includes(`+${money(max - min, currency)}`))
-      assert.match(chart, /d="M 18 130 L 302 20"/)
-    })
+    const totals = currency === 'JPY' ? [{ JPY: 50, CNY: 250 }, { JPY: 51, CNY: 260 }] : [{ JPY: 1000, CNY: 5000 }, { JPY: 1040, CNY: 5100 }]
+    const html = render([snapshot('2026-09-17', totals[0]), snapshot('2026-09-18', totals[1])], currency)
+    assert.equal((html.match(/<svg viewBox="0 0 320 158"/g) ?? []).length, 1)
+    assert.equal(line(html, 'total'), 'M 18 130 L 302 20')
+    const nativeY = Number(line(html, 'native')?.match(/L 302 ([\d.]+)/)?.[1])
+    assert.ok(Math.abs((130 - 20) / (130 - nativeY) - 1.5) < 1e-10)
+    const stats = panels(html)
+    const unit = currency === 'JPY' ? 1 : 100
+    assert.equal(stats.length, 2)
+    for (const [index, [min, max, percentage]] of [[100, 103, 3], [50, 51, 2]].entries()) {
+      assert.ok(stats[index].includes('最高 ' + money(max * unit, currency)))
+      assert.ok(stats[index].includes('最低 ' + money(min * unit, currency)))
+      assert.ok(stats[index].includes('+' + money((max - min) * unit, currency)))
+      assert.ok(stats[index].includes('+' + percentage + '%'))
+    }
   }
 })
 
-test('missing rates do not suppress the native chart or invent an endpoint change', () => {
-  const [total, native] = panels(render([snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })]))
-  assert.match(total, /区间净变化 <strong class="money">待汇率<\/strong>/)
-  assert.match(total, /d=" M 302 75"/)
-  assert.match(native, /d="M 18 130 L 302 20"/)
-  const unavailable = panels(render([snapshot('2026-09-18', { JPY: 100, CNY: 10000 }, null)]))
-  assert.ok(!unavailable[0].includes('<svg'))
-  assert.ok(unavailable[1].includes('<svg'))
+test('equal percentage changes overlap regardless of balance magnitude', () => {
+  const html = render([snapshot('2026-09-17', { JPY: 100000, CNY: 4500000 }), snapshot('2026-09-18', { JPY: 101000, CNY: 4545000 })])
+  assert.equal(line(html, 'total'), 'M 18 130 L 302 20')
+  assert.equal(line(html, 'native'), line(html, 'total'))
 })
 
-test('history keeps gaps and handles flat, negative and empty balances', () => {
-  const [gapped] = panels(render([snapshot('2026-09-16', { JPY: 100, CNY: 10000 }), snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })]))
-  assert.match(gapped, /d="M 18 130  M 302 20"/)
-  const [negative] = panels(render([snapshot('2026-09-17', { JPY: -100, CNY: 0 }), snapshot('2026-09-18', { JPY: -200, CNY: 0 })]))
-  assert.match(negative, /d="M 18 20 L 302 130"/)
-  assert.ok(negative.includes(money(-100, 'JPY')))
-  for (const value of [0, -100]) {
-    const html = render([snapshot('2026-09-18', { JPY: value, CNY: 0 })])
-    assert.match(html, /d="M 18 75"/)
-    assert.ok(!/NaN|Infinity/.test(html))
-  }
+test('a missing initial rate does not rebase the total line to a later date', () => {
+  const html = render([snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })])
+  assert.equal(line(html, 'total')?.trim(), '')
+  assert.equal(line(html, 'native'), 'M 18 130 L 302 20')
+  assert.match(panels(html)[0], /区间净变化 <strong class="money">待汇率<\/strong>/)
+  assert.ok(html.includes('起点缺少汇率'))
+})
+
+test('missing middle rates leave gaps and do not interrupt the native line', () => {
+  const html = render([snapshot('2026-09-16', { JPY: 100, CNY: 10000 }), snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })])
+  assert.equal((line(html, 'total')?.match(/M/g) ?? []).length, 2)
+  assert.ok(!line(html, 'total')?.includes('L'))
+  assert.equal((line(html, 'native')?.match(/L/g) ?? []).length, 2)
+})
+
+test('zero starting balances do not invent a percentage, while monetary changes remain visible', () => {
+  const html = render([snapshot('2026-09-17', { JPY: 0, CNY: 10000 }), snapshot('2026-09-18', { JPY: 100, CNY: 10000 })])
+  assert.equal(line(html, 'native')?.trim(), '')
+  assert.ok(line(html, 'total')?.includes('L'))
+  const native = panels(html)[1]
+  assert.ok(native.includes('起点余额为 0'))
+  assert.ok(native.includes('+' + money(100, 'JPY')))
+  const zero = render([snapshot('2026-09-18', { JPY: 0, CNY: 0 })])
+  assert.ok(!zero.includes('<svg viewBox="0 0 320 158"'))
+  assert.ok(!/NaN|Infinity/.test(zero))
+})
+
+test('negative balances, flat balances and single days produce finite meaningful percentages', () => {
+  const improved = render([snapshot('2026-09-17', { JPY: -100, CNY: 0 }), snapshot('2026-09-18', { JPY: -50, CNY: 0 })])
+  assert.equal(line(improved, 'total'), 'M 18 130 L 302 20')
+  assert.ok(improved.includes('+50%'))
+  assert.ok(improved.includes('负债减少显示为正'))
+  const declined = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 90, CNY: 0 })])
+  assert.equal(line(declined, 'total'), 'M 18 20 L 302 130')
+  assert.ok(declined.includes('-10%'))
+  const flat = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
+  assert.equal(line(flat, 'total'), 'M 18 75 L 302 75')
+  const single = render([snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
+  assert.equal(line(single, 'total'), 'M 18 75')
+  assert.ok(!/NaN|Infinity/.test(single))
   assert.equal(panels(render([])).length, 0)
 })
 
-test('history correction identifies the real snapshot date and explains current balance effects', () => {
-  const asset: Asset = { id: 'one', source: '银行账户', currency: 'JPY', amountMinor: 100, updatedDay: '2026-09-17', updatedAt: '2026-09-17T00:00:00Z' }
+test('history keeps the today balance action and removes historical correction controls', () => {
+  const asset: Asset = { id: 'one', source: '银行账户', currency: 'JPY', amountMinor: 100, updatedDay: '2026-09-17', updatedAt: '2026-09-18T00:00:00Z' }
   const html = render([{ ...snapshot('2026-09-17', { JPY: 100, CNY: 0 }), assets: [asset] }])
-  assert.ok(html.includes('修改历史金额'))
-  assert.ok(html.includes('修改 2026-09-17 快照'))
-  assert.ok(!html.includes('修改 2026-09-18 快照'))
   assert.ok(html.includes('更新为今日余额'))
-  for (const affectsCurrent of [true, false]) {
-    const editor = renderToStaticMarkup(createElement(AssetEditor, {
-      asset, history: { day: '2026-09-17', through: '2026-09-18', affectsCurrent }, currency: 'JPY',
-      onClose: () => {}, onSave: async () => {}, onDelete: async () => {},
-    }))
-    assert.ok(editor.includes('修正历史金额'))
-    assert.ok(editor.includes('2026-09-17 的余额'))
-    assert.ok(editor.includes('readOnly=""'))
-    assert.ok(editor.includes('保存历史修正'))
-    assert.ok(!editor.includes('删除这条资产'))
-    assert.ok(editor.includes(affectsCurrent ? '当前资产余额也会同步修正' : '当前资产余额保持不变'))
-  }
+  assert.ok(!html.includes('修改历史金额'))
+  assert.ok(!html.includes('修改 2026-09-17 快照'))
 })
