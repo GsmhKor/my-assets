@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
 import { Icon } from './components/Icon'
+import { balanceChange, moneyChangeClass } from './components/balanceChange'
 import { EMPTY_LEDGER, convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { changeLedger, readLedger } from './services/database'
@@ -127,9 +128,13 @@ export default function App() {
   const total = convertedTotal(totals, currency, rate)
   const visibleAssets = (ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   function assetRows(rows: Asset[]) {
-    return rows.map(asset => <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source} ${asset.currency}`}>
-      <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span><span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)} · 更新于 {asset.updatedDay}</small></span><span className={`asset-money money${asset.amountMinor < 0 ? ' negative' : ''}`}>{money(asset.amountMinor, asset.currency)}<small>{asset.currency !== currency ? `≈ ${money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}` : '点击更新余额'}</small></span><Icon name="chevron-right" size={15} />
-    </button>)
+    return rows.map(asset => {
+      const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
+      const change = balanceChange(asset, previous)
+      return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source} ${asset.currency}`}>
+        <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span><span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)} · 更新于 {asset.updatedDay}</small></span><span className="asset-money money"><span className={`money${moneyChangeClass(change)}`}>{money(asset.amountMinor, asset.currency)}</span>{change !== null && <small className={`money${moneyChangeClass(change)}`}>较 {previous!.day} {change > 0 ? '+' : ''}{money(change, asset.currency)}</small>}{asset.currency !== currency ? <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small> : change === null && <small>点击更新余额</small>}</span><Icon name="chevron-right" size={15} />
+      </button>
+    })
   }
   return <div className="app-shell">
     <main className="page">
