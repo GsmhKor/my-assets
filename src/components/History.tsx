@@ -39,11 +39,8 @@ export function History({ ledger, currency, today, onEdit, busy = false }: { led
     <div className="month-switch"><button className="icon-button" aria-label="上个月" disabled={Boolean(ledger.snapshots.length && month <= ledger.snapshots[0].day.slice(0, 7))} onClick={() => move(-1)}><Icon name="chevron-left" /></button><label><span className="sr-only">选择月份</span><input type="month" value={month} min={ledger.snapshots[0]?.day.slice(0, 7)} max={today.slice(0, 7)} onChange={event => { if (/^\d{4}-\d{2}$/.test(event.target.value)) setMonth(event.target.value) }} /></label><button className="icon-button" aria-label="下个月" disabled={month >= today.slice(0, 7)} onClick={() => move(1)}><Icon name="chevron-right" /></button></div>
     <section className="card history-chart"><h2>每日资产变化 · {currency}</h2>
       {points.length ? <>
-        <p className="small muted">总资产包含另一币种的折算金额；实际资产仅统计{currencyName(currency)}余额。</p>
-        <p className="small muted chart-note">以 {points[0].day} 各自余额为起点（0%），叠加比较涨跌幅；同样的高度变化代表同样的百分比变化。</p>
         <div className="chart-legend">{series.map(item => <span key={item.id}><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" />{item.label}</span>)}</div>
         {changes.length > 0 && <>
-          <div className="chart-labels"><span>涨跌幅上限 {percent(maxChange)}</span><span>下限 {percent(minChange)}</span></div>
           <svg viewBox="0 0 320 158" role="img" aria-label={`${month}总资产与${nativeLabel}涨跌幅对比，以 ${points[0].day} 为起点，共用百分比刻度，详细金额见下方日期列表`}>
             <path d="M18 20H302 M18 130H302" className="chart-axis" />
             <path d={`M18 ${y(0)}H302`} className="chart-zero" />
