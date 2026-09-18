@@ -3,7 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
 import { Icon } from './components/Icon'
-import { EMPTY_LEDGER, convertedTotal, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, sumAssets, validRate } from './domain/ledger'
+import { EMPTY_LEDGER, convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchRate } from './services/rates'
@@ -34,7 +34,7 @@ export default function App() {
   const ratePending = useRef(false)
   const [rateError, setRateError] = useState('')
   const [today, setToday] = useState(localDay)
-  const [editor, setEditor] = useState<{ asset?: Asset; revision: number } | null>(null)
+  const [editor, setEditor] = useState<{ asset?: Asset; revision: number; history?: { day: string; through: string; affectsCurrent: boolean } } | null>(null)
   const [busy, setBusy] = useState(false)
   const mutationPending = useRef(false)
   const [message, setMessage] = useState('')
@@ -92,7 +92,22 @@ export default function App() {
   useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; remember('theme', dark ? 'dark' : 'light') }, [dark])
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
   function edit(asset?: Asset) { if (ledger && !busy) setEditor({ asset, revision: ledger.revision }) }
-  async function save(draft: Draft) { await mutate(value => saveAsset(value, draft, rate), editor?.revision); setMessage('已保存今日余额与总资产快照。') }
+  function correctHistorical(day: string, asset: Asset) {
+    if (!ledger || busy) return
+    const next = ledger.snapshots.find(snapshot => snapshot.day > day)
+    setEditor({ asset, revision: ledger.revision, history: { day, through: next ? shiftDay(next.day, -1) : localDay(), affectsCurrent: !next } })
+  }
+  async function save(draft: Draft) {
+    if (editor?.history && editor.asset) {
+      const { day } = editor.history
+      const assetId = editor.asset.id
+      await mutate(value => correctSnapshotAmount(value, day, assetId, draft.amount), editor.revision)
+      setMessage(`已修正 ${day} 的历史金额与总资产。`)
+    } else {
+      await mutate(value => saveAsset(value, draft, rate), editor?.revision)
+      setMessage('已保存今日余额与总资产快照。')
+    }
+  }
   async function remove(id: string) { await mutate(value => removeAsset(value, id, rate), editor?.revision); setMessage('已从当前资产移除，之前的快照仍保留。') }
   async function restore(file: File) {
     const revision = ledgerRef.current?.revision
@@ -133,7 +148,7 @@ export default function App() {
           <div className="section-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2></div>
           <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
         </>}
-        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} />}
+        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} busy={busy} />}
         {tab === 'settings' && <>
           <div className="section-heading"><h1>设置</h1></div>
           <section className="card privacy"><img src={settingsPrivacyCat} alt="" /><div><h2>资产只保存在这里</h2><p>金额和来源留在本设备。联网仅查询汇率，请定期备份。</p></div></section>
@@ -146,7 +161,7 @@ export default function App() {
     </main>
     {ledger && !loadError && tab !== 'settings' && <button className="floating-add" onClick={() => edit()} disabled={busy} aria-label="记一笔" title="记一笔资产" />}
     <nav className="tab-bar" aria-label="主导航">{tabs.map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => { setTab(item.id); setSearch('') }}>{item.image ? <img src={item.image} alt="" /> : <Icon name="settings" size={28} />}<span>{item.label}</span></button>)}</nav>
-    {editor && <AssetEditor asset={editor.asset} currency={currency} onClose={() => setEditor(null)} onSave={save} onDelete={remove} />}
+    {editor && <AssetEditor asset={editor.asset} history={editor.history} currency={currency} onClose={() => setEditor(null)} onSave={save} onDelete={remove} />}
     {message && <div className="toast" role="status">{message}</div>}
   </div>
 }

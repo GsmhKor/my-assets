@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import type { Currency, Ledger } from '../domain/ledger'
+import type { Asset, Currency, Ledger } from '../domain/ledger'
 import { convertedTotal, currencyName, historyBetween, money, shiftDay } from '../domain/ledger'
 import { Icon } from './Icon'
 
 const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}%`
 
-export function History({ ledger, currency, today }: { ledger: Ledger; currency: Currency; today: string }) {
+export function History({ ledger, currency, today, onCorrect, busy = false }: { ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; busy?: boolean }) {
   const [month, setMonth] = useState(today.slice(0, 7))
   const from = `${month}-01`
   const next = new Date(`${from}T12:00:00Z`)
@@ -66,7 +66,7 @@ export function History({ ledger, currency, today }: { ledger: Ledger; currency:
     <div className="history-list">{[...points].reverse().map(point => <details className="card day-card" key={point.day}>
       <summary><span><strong>{point.day}{point.day === today ? ' · 今天' : ''}</strong><small>{point.carried ? `沿用 ${point.snapshot.day}` : '当日最后保存'}</small></span><b className="money"><small>总资产（折算）</small>{money(convertedTotal(point.snapshot.totals, currency, point.snapshot.rate), currency, 0)}<small>{nativeLabel} {money(point.snapshot.totals[currency], currency, 0)}</small></b><Icon name="chevron-right" size={17} /></summary>
       <div className="day-detail"><p className="small muted">日元 {money(point.snapshot.totals.JPY, 'JPY')} · 人民币 {money(point.snapshot.totals.CNY, 'CNY', 0)}</p><p className="small muted">{point.snapshot.rate ? `快照汇率：1 CNY = ${point.snapshot.rate.cnyToJpy} JPY（${point.snapshot.rate.date} · ${point.snapshot.rate.source}）` : '此快照没有汇率，跨币种总额暂不可用。'}</p>
-        {point.snapshot.assets.map(asset => <div className="snapshot-row" key={asset.id}><span>{asset.source}<small>{money(asset.amountMinor, asset.currency)}</small></span></div>)}
+        {point.snapshot.assets.map(asset => <div className="snapshot-row" key={asset.id}><span>{asset.source}<small>{money(asset.amountMinor, asset.currency)}</small></span><button className="text-button" disabled={busy} onClick={() => onCorrect(point.snapshot.day, asset)} aria-label={`修改 ${point.snapshot.day} 快照中 ${asset.source} 的金额`}>{point.carried ? `修改 ${point.snapshot.day} 快照` : '修改历史金额'}</button></div>)}
         {!point.snapshot.assets.length && <p className="small muted">当日没有持有资产。</p>}
       </div>
     </details>)}</div>
