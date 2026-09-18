@@ -94,7 +94,7 @@ export function money(minor: number | null, currency: Currency, fractionDigits =
   if (minor === null) return '待汇率'
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, currencyDisplay: 'code', minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(minor / (currency === 'JPY' ? 1 : 100))
 }
-function normalizeSource(value: string) { return value.normalize('NFKC').trim().toLocaleLowerCase() }
+export function normalizeSource(value: string) { return value.normalize('NFKC').trim().toLocaleLowerCase() }
 export function recordSnapshot(ledger: Ledger, assets: Asset[], rate: Rate | null, now = new Date()): Ledger {
   const day = localDay(now)
   if (ledger.snapshots.some(snapshot => snapshot.day > day)) throw new Error('设备日期早于已有记录，请先校正设备日期。')

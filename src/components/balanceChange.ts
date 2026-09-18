@@ -1,8 +1,15 @@
 import type { Asset, Currency, Snapshot } from '../domain/ledger'
+import { normalizeSource } from '../domain/ledger'
 
 export function balanceChange(asset: Asset, previous: Snapshot | undefined): number | null {
-  const before = previous?.assets.find(item => item.id === asset.id && item.currency === asset.currency)
-  return before ? asset.amountMinor - before.amountMinor : null
+  if (!previous) return null
+  const byId = previous.assets.find(item => item.id === asset.id)
+  if (byId) return byId.currency === asset.currency ? asset.amountMinor - byId.amountMinor : null
+
+  // Recreated or imported records can retain their source name but have a new ID.
+  const source = normalizeSource(asset.source)
+  const matches = previous.assets.filter(item => item.currency === asset.currency && normalizeSource(item.source) === source)
+  return matches.length === 1 ? asset.amountMinor - matches[0].amountMinor : null
 }
 
 export function moneyChangeClass(change: number | null): string {
