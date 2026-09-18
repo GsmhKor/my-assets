@@ -18,9 +18,13 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
   ].map(item => {
     const first = item.amounts[0]
     const last = item.amounts.at(-1)
+    // historyBetween fills every calendar day, including carried snapshots.
+    const yesterday = item.amounts.at(-2)
+    const dailyChange = yesterday != null && last != null ? last - yesterday : null
+    const dailyPercent = dailyChange !== null && yesterday != null && yesterday !== 0 ? dailyChange / Math.abs(yesterday) * 100 : null
     const valid = item.amounts.filter((amount): amount is number => amount !== null)
     const changes = item.amounts.map(amount => first == null || first === 0 || amount === null ? null : (amount - first) / Math.abs(first) * 100)
-    return { ...item, first, changes, change: first != null && last != null ? last - first : null,
+    return { ...item, first, changes, yesterday, dailyChange, dailyPercent,
       min: valid.length ? Math.min(...valid) : null, max: valid.length ? Math.max(...valid) : null }
   })
   const changes = series.flatMap(item => item.changes).filter((value): value is number => value !== null)
@@ -47,7 +51,7 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
         </>}
         {series.map(item => <section className="history-series" aria-label={item.label} key={item.id}>
             <h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" />{item.label}</h3>
-            <p className="chart-change">区间净变化 <strong className={`money${moneyChangeClass(item.change)}`}>{formatMoneyChange(item.change, currency)}</strong>{item.changes.at(-1) != null && <span className={`money${moneyChangeClass(item.change)}`}>（{percent(item.changes.at(-1)!)}）</span>}</p>
+            <p className="chart-change">较昨日变化 <strong className={`money${moneyChangeClass(item.dailyChange)}`}>{item.yesterday === undefined ? '暂无昨日记录' : formatMoneyChange(item.dailyChange, currency)}</strong>{item.dailyPercent !== null && <span className={`money${moneyChangeClass(item.dailyChange)}`}>（{percent(item.dailyPercent)}）</span>}{item.yesterday === 0 && item.dailyChange !== null && <span title="昨日余额为 0，无法计算变化百分比">（昨日余额为 0）</span>}</p>
             <div className="chart-labels"><span>最高 {money(item.max, currency, 0)}</span><span>最低 {money(item.min, currency, 0)}</span></div>
             {item.first === 0 && <p className="small muted chart-note">起点余额为 0，无法计算涨跌幅；仍显示金额统计。</p>}
             {item.first == null && <p className="small muted chart-note">起点缺少汇率，暂无法比较涨跌幅；可用日期的金额仍保留。</p>}
