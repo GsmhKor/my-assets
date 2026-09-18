@@ -9,7 +9,7 @@ import type { Asset, Currency, Ledger, Rate, Snapshot, Totals } from '../src/dom
 import { money } from '../src/domain/ledger.ts'
 
 let server: ViteDevServer
-let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onEdit: () => void }>
+let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string }>
 before(async () => {
   server = await createServer({ server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' })
   History = (await server.ssrLoadModule('/src/components/History.tsx')).History
@@ -19,7 +19,7 @@ after(async () => { await server?.close() })
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-16', fetchedAt: '2026-09-16T00:00:00Z', source: 'Frankfurter' }
 const snapshot = (day: string, totals: Totals, savedRate: Rate | null = rate): Snapshot => ({ day, savedAt: day + 'T00:00:00Z', assets: [], totals, rate: savedRate })
 const render = (snapshots: Snapshot[], currency: Currency = 'JPY') => renderToStaticMarkup(createElement(History, {
-  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', onEdit: () => {},
+  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18',
 }))
 const panels = (html: string) => [...html.matchAll(/<section class="history-series"[^>]*>(.*?)<\/section>/gs)].map(match => match[1])
 const line = (html: string, id: string) => html.match(new RegExp('d="([^"]*)" class="chart-line chart-line-' + id + '"'))?.[1]
@@ -93,10 +93,12 @@ test('negative balances, flat balances and single days produce finite meaningful
   assert.equal(panels(render([])).length, 0)
 })
 
-test('history keeps the today balance action and removes historical correction controls', () => {
+test('history displays saved asset details without balance update or correction controls', () => {
   const asset: Asset = { id: 'one', source: '银行账户', currency: 'JPY', amountMinor: 100, updatedDay: '2026-09-17', updatedAt: '2026-09-18T00:00:00Z' }
   const html = render([{ ...snapshot('2026-09-17', { JPY: 100, CNY: 0 }), assets: [asset] }])
-  assert.ok(html.includes('更新为今日余额'))
+  assert.ok(html.includes('银行账户'))
+  assert.ok(html.includes(money(100, 'JPY')))
+  assert.ok(!html.includes('更新为今日余额'))
   assert.ok(!html.includes('修改历史金额'))
   assert.ok(!html.includes('修改 2026-09-17 快照'))
 })

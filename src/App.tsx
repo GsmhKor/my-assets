@@ -92,10 +92,6 @@ export default function App() {
   useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; remember('theme', dark ? 'dark' : 'light') }, [dark])
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
   function edit(asset?: Asset) { if (ledger && !busy) setEditor({ asset, revision: ledger.revision }) }
-  function editHistorical(asset: Asset) {
-    const existing = ledger?.assets.find(item => item.id === asset.id)
-    edit({ ...asset, id: existing?.id ?? '' })
-  }
   async function save(draft: Draft) { await mutate(value => saveAsset(value, draft, rate), editor?.revision); setMessage('已保存今日余额与总资产快照。') }
   async function remove(id: string) { await mutate(value => removeAsset(value, id, rate), editor?.revision); setMessage('已从当前资产移除，之前的快照仍保留。') }
   async function restore(file: File) {
@@ -137,7 +133,7 @@ export default function App() {
           <div className="section-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2></div>
           <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
         </>}
-        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onEdit={editHistorical} busy={busy} />}
+        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} />}
         {tab === 'settings' && <>
           <div className="section-heading"><h1>设置</h1></div>
           <section className="card privacy"><img src={settingsPrivacyCat} alt="" /><div><h2>资产只保存在这里</h2><p>金额和来源留在本设备。联网仅查询汇率，请定期备份。</p></div></section>

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import type { Asset, Currency, Ledger } from '../domain/ledger'
+import type { Currency, Ledger } from '../domain/ledger'
 import { convertedTotal, currencyName, historyBetween, money, shiftDay } from '../domain/ledger'
 import { Icon } from './Icon'
 
 const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { maximumSignificantDigits: 3 }).format(value)}%`
 
-export function History({ ledger, currency, today, onEdit, busy = false }: { ledger: Ledger; currency: Currency; today: string; onEdit: (asset: Asset) => void; busy?: boolean }) {
+export function History({ ledger, currency, today }: { ledger: Ledger; currency: Currency; today: string }) {
   const [month, setMonth] = useState(today.slice(0, 7))
   const from = `${month}-01`
   const next = new Date(`${from}T12:00:00Z`)
@@ -66,7 +66,7 @@ export function History({ ledger, currency, today, onEdit, busy = false }: { led
     <div className="history-list">{[...points].reverse().map(point => <details className="card day-card" key={point.day}>
       <summary><span><strong>{point.day}{point.day === today ? ' · 今天' : ''}</strong><small>{point.carried ? `沿用 ${point.snapshot.day}` : '当日最后保存'}</small></span><b className="money"><small>总资产（折算）</small>{money(convertedTotal(point.snapshot.totals, currency, point.snapshot.rate), currency, 0)}<small>{nativeLabel} {money(point.snapshot.totals[currency], currency, 0)}</small></b><Icon name="chevron-right" size={17} /></summary>
       <div className="day-detail"><p className="small muted">日元 {money(point.snapshot.totals.JPY, 'JPY')} · 人民币 {money(point.snapshot.totals.CNY, 'CNY', 0)}</p><p className="small muted">{point.snapshot.rate ? `快照汇率：1 CNY = ${point.snapshot.rate.cnyToJpy} JPY（${point.snapshot.rate.date} · ${point.snapshot.rate.source}）` : '此快照没有汇率，跨币种总额暂不可用。'}</p>
-        {point.snapshot.assets.map(asset => <div className="snapshot-row" key={asset.id}><span>{asset.source}<small>{money(asset.amountMinor, asset.currency)}</small></span><button className="text-button" disabled={busy} onClick={() => onEdit(asset)}>更新为今日余额</button></div>)}
+        {point.snapshot.assets.map(asset => <div className="snapshot-row" key={asset.id}><span>{asset.source}<small>{money(asset.amountMinor, asset.currency)}</small></span></div>)}
         {!point.snapshot.assets.length && <p className="small muted">当日没有持有资产。</p>}
       </div>
     </details>)}</div>
