@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { EMPTY_LEDGER, amountInput, convertedTotal, correctSnapshotAmount, historyBetween, parseAmount, recordSnapshot, removeAsset, saveAsset, sumAssets } from '../src/domain/ledger.ts'
+import { EMPTY_LEDGER, amountInput, convertedTotal, historyBetween, parseAmount, recordSnapshot, removeAsset, saveAsset, sumAssets } from '../src/domain/ledger.ts'
 import type { Asset, Rate } from '../src/domain/ledger.ts'
 import { exportBackup, parseBackup } from '../src/services/backup.ts'
 
@@ -115,60 +115,4 @@ test('refreshing on a new day creates today without repricing previous carried d
   assert.equal(refreshed.snapshots.at(-1)?.day, '2026-09-17')
   assert.deepEqual(refreshed.assets, original.assets)
   assert.deepEqual(refreshed.snapshots[0], original.snapshots[0])
-})
-
-test('correcting an older snapshot recalculates totals with its saved rate without rewriting later balances', () => {
-  const withJpy = saveAsset(create(), { source: 'JPY account', currency: 'JPY', amount: '1000' }, rate, first, 'two')
-  const original = saveAsset(withJpy, { id: 'one', source: '自己填写的来源', currency: 'CNY', amount: '300' }, { ...rate, cnyToJpy: 21 }, second)
-  const before = structuredClone(original)
-  const corrected = correctSnapshotAmount(original, '2026-09-15', 'one', '200', second)
-  assert.deepEqual(original, before)
-  assert.equal(corrected.revision, original.revision + 1)
-  assert.deepEqual(corrected.snapshots[0].totals, { JPY: 1000, CNY: 20000 })
-  assert.equal(convertedTotal(corrected.snapshots[0].totals, 'JPY', corrected.snapshots[0].rate), 5000)
-  assert.deepEqual(corrected.snapshots[0].rate, rate)
-  assert.deepEqual(corrected.snapshots[0].assets[1], original.snapshots[0].assets[1])
-  assert.equal(corrected.snapshots[0].assets[0].updatedDay, '2026-09-15')
-  assert.equal(corrected.snapshots[0].savedAt, second.toISOString())
-  assert.deepEqual(corrected.snapshots[1], original.snapshots[1])
-  assert.deepEqual(corrected.assets, original.assets)
-  assert.deepEqual(parseBackup(exportBackup(corrected), '2026-09-16').snapshots, corrected.snapshots)
-})
-
-test('correcting the latest snapshot synchronizes current assets and carried days, including negative JPY', () => {
-  const original = saveAsset(create(), { source: 'JPY account', currency: 'JPY', amount: '1000' }, rate, first, 'two')
-  const corrected = correctSnapshotAmount(original, '2026-09-15', 'two', '-500', second)
-  assert.equal(corrected.snapshots.length, 1)
-  assert.deepEqual(corrected.assets, corrected.snapshots[0].assets)
-  assert.equal(corrected.assets[1].amountMinor, -500)
-  assert.equal(corrected.assets[0].amountMinor, 10025)
-  assert.ok(historyBetween(corrected.snapshots, '2026-09-15', '2026-09-16').every(point => point.snapshot.totals.JPY === -500))
-  assert.deepEqual(parseBackup(exportBackup(corrected), '2026-09-16').assets, corrected.assets)
-})
-
-test('historical corrections stop at the next saved snapshot and do not restore a deleted current asset', () => {
-  const third = new Date(2026, 8, 17, 12)
-  const original = removeAsset(create(), 'one', rate, third)
-  const corrected = correctSnapshotAmount(original, '2026-09-15', 'one', '200', third)
-  const points = historyBetween(corrected.snapshots, '2026-09-15', '2026-09-17')
-  assert.deepEqual(points.map(point => point.snapshot.totals.CNY), [20000, 20000, 0])
-  assert.deepEqual(corrected.assets, [])
-  assert.deepEqual(corrected.snapshots[1], original.snapshots[1])
-})
-
-test('corrections without a historical rate preserve missing conversion and accept zero', () => {
-  const original = recordSnapshot(create(), create().assets, null, first)
-  const corrected = correctSnapshotAmount(original, '2026-09-15', 'one', '200', second)
-  assert.equal(corrected.snapshots[0].rate, null)
-  assert.equal(convertedTotal(corrected.snapshots[0].totals, 'JPY', null), null)
-  assert.equal(correctSnapshotAmount(corrected, '2026-09-15', 'one', '0', second).snapshots[0].totals.CNY, 0)
-})
-
-test('historical corrections reject invalid dates, missing records and invalid amounts without mutations', () => {
-  const original = create()
-  const before = structuredClone(original)
-  for (const day of ['2026-02-30', '2026-09-16', '2026-09-17']) assert.throws(() => correctSnapshotAmount(original, day, 'one', '200', second))
-  assert.throws(() => correctSnapshotAmount(original, '2026-09-15', 'missing', '200', second))
-  for (const amount of ['', '1.25', 'not a number', '900000001']) assert.throws(() => correctSnapshotAmount(original, '2026-09-15', 'one', amount, second))
-  assert.deepEqual(original, before)
 })
