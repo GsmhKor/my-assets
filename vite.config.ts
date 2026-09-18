@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 const base = process.env.VITE_BASE_PATH ?? '/my-assets/'
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
-const installName = `我的资金 ${version}`
+const installName = '资金账本'
 export default defineConfig({
   base,
   define: { __APP_VERSION__: JSON.stringify(version) },

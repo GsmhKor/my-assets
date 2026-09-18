@@ -9,7 +9,7 @@ import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchRate } from './services/rates'
 import { downloadBackup, parseBackup } from './services/backup'
-import { activateAppUpdate } from './services/appUpdate'
+import { activateAppUpdate, checkForAppUpdate } from './services/appUpdate'
 import homeCat from './assets/cat-tab-home.png'
 import assetsCat from './assets/cat-tab-bills.png'
 import historyCat from './assets/cat-tab-stats.png'
@@ -39,6 +39,8 @@ export default function App() {
   const [editor, setEditor] = useState<{ asset?: Asset; revision: number; history?: { day: string; through: string; affectsCurrent: boolean } } | null>(null)
   const [saving, setBusy] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const checkUpdatePending = useRef(false)
   const updatePending = useRef(false)
   const [updateError, setUpdateError] = useState('')
   const [activatedUpdate, setActivatedUpdate] = useState(false)
@@ -72,6 +74,16 @@ export default function App() {
       window.removeEventListener('online', check)
     }
   }, [swRegistration, setNeedRefresh])
+  async function checkAppUpdate() {
+    if (checkUpdatePending.current || updatePending.current) return
+    checkUpdatePending.current = true; setCheckingUpdate(true); setMessage('')
+    try {
+      const available = needRefresh || activatedUpdate || await checkForAppUpdate(swRegistration)
+      if (available) { setNeedRefresh(true); setUpdateError(''); setMessage('新版本已就绪，请点击「更新应用」。') }
+      else setMessage('当前已是最新版本。')
+    } catch (error) { setMessage(errorText(error)) }
+    finally { checkUpdatePending.current = false; setCheckingUpdate(false) }
+  }
   async function updateApp() {
     if (mutationPending.current || updatePending.current || editor) return
     updatePending.current = true; setUpdating(true); setUpdateError('')
@@ -175,7 +187,7 @@ export default function App() {
   }
   return <div className="app-shell">
     <main className="page">
-      <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" /><div><strong>资金账本</strong></div></div><span className="local-badge">本地保存</span></header>
+      <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" /><div><strong>资金账本</strong></div></div><button type="button" className="local-badge" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} title="查看更新" onClick={() => void checkAppUpdate()}>{checkingUpdate ? '检查中…' : '查看更新'}</button></header>
       {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {(tab === 'home' || tab === 'history') && <div className="currency-switch" role="group" aria-label="登记与统计币种">{(['JPY', 'CNY'] as const).map(value => <button key={value} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}><span>{currencyName(value)}</span><small>{value}</small></button>)}</div>}
