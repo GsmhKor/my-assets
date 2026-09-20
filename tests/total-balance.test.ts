@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
 import type { ViteDevServer } from 'vite'
 import type { Rate, Snapshot, Totals } from '../src/domain/ledger.ts'
-import { totalChangePercent } from '../src/domain/ledger.ts'
+import { totalChangeAmount } from '../src/domain/ledger.ts'
 
 const today = '2026-09-20'
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-19', fetchedAt: '2026-09-19T00:00:00Z', source: 'Frankfurter' }
@@ -20,8 +20,8 @@ after(async () => { await server?.close() })
 
 test('compares current total with yesterday using its saved exchange rate in either currency', () => {
   const snapshots = [snapshot('2026-09-19', { JPY: 1000, CNY: 5000 })]
-  assert.equal(totalChangePercent(2100, snapshots, 'JPY', today), 5)
-  assert.equal(totalChangePercent(9500, snapshots, 'CNY', today), -5)
+  assert.equal(totalChangeAmount(2100, snapshots, 'JPY', today), 100)
+  assert.equal(totalChangeAmount(9500, snapshots, 'CNY', today), -500)
 })
 
 test('carries the latest earlier snapshot into yesterday, excluding today and future entries', () => {
@@ -31,34 +31,43 @@ test('carries the latest earlier snapshot into yesterday, excluding today and fu
     snapshot('2026-09-21', { JPY: 999, CNY: 0 }),
     snapshot('2026-09-18', { JPY: 200, CNY: 0 }),
   ]
-  assert.equal(totalChangePercent(250, snapshots, 'JPY', today), 25)
-  assert.equal(totalChangePercent(200, snapshots, 'JPY', today), 0)
-  assert.equal(totalChangePercent(110, [snapshot('2025-12-31', { JPY: 100, CNY: 0 })], 'JPY', '2026-01-01'), 10)
+  assert.equal(totalChangeAmount(250, snapshots, 'JPY', today), 50)
+  assert.equal(totalChangeAmount(200, snapshots, 'JPY', today), 0)
+  assert.equal(totalChangeAmount(110, [snapshot('2025-12-31', { JPY: 100, CNY: 0 })], 'JPY', '2026-01-01'), 10)
 })
 
-test('uses absolute yesterday balance so reducing debt counts as an increase', () => {
+test('reducing debt counts as an increase', () => {
   const snapshots = [snapshot('2026-09-19', { JPY: -100, CNY: 0 })]
-  assert.equal(totalChangePercent(-80, snapshots, 'JPY', today), 20)
-  assert.equal(totalChangePercent(-120, snapshots, 'JPY', today), -20)
+  assert.equal(totalChangeAmount(-80, snapshots, 'JPY', today), 20)
+  assert.equal(totalChangeAmount(-120, snapshots, 'JPY', today), -20)
 })
 
-test('omits undefined comparisons without inventing a zero percent change', () => {
-  assert.equal(totalChangePercent(100, [], 'JPY', today), null)
-  assert.equal(totalChangePercent(100, [snapshot(today, { JPY: 100, CNY: 0 })], 'JPY', today), null)
-  assert.equal(totalChangePercent(100, [snapshot('2026-09-19', { JPY: 0, CNY: 0 })], 'JPY', today), null)
+test('omits missing comparisons but supports a zero previous balance', () => {
+  assert.equal(totalChangeAmount(100, [], 'JPY', today), null)
+  assert.equal(totalChangeAmount(100, [snapshot(today, { JPY: 100, CNY: 0 })], 'JPY', today), null)
+  assert.equal(totalChangeAmount(100, [snapshot('2026-09-19', { JPY: 0, CNY: 0 })], 'JPY', today), 100)
   const mixed = [snapshot('2026-09-19', { JPY: 100, CNY: 100 }, null)]
-  assert.equal(totalChangePercent(100, mixed, 'JPY', today), null)
-  assert.equal(totalChangePercent(null, mixed, 'JPY', today), null)
-  assert.equal(totalChangePercent(110, [snapshot('2026-09-19', { JPY: 100, CNY: 0 }, null)], 'JPY', today), 10)
+  assert.equal(totalChangeAmount(100, mixed, 'JPY', today), null)
+  assert.equal(totalChangeAmount(null, mixed, 'JPY', today), null)
+  assert.equal(totalChangeAmount(110, [snapshot('2026-09-19', { JPY: 100, CNY: 0 }, null)], 'JPY', today), 10)
 })
 
-test('renders only a signed percentage after the amount with gain/loss colors and neutral zero', () => {
-  for (const [total, percentage, color] of [[103, '+3.00%', 'money-up'], [98, '-2.00%', 'money-down'], [100, '0.00%', '']] as const) {
+test('renders signed change amounts with gain/loss colors and neutral zero', () => {
+  for (const [total, amount, color] of [[103, '+ 3 JPY', 'money-up'], [98, '- 2 JPY', 'money-down'], [100, '0 JPY', '']] as const) {
     const html = renderToStaticMarkup(createElement(TotalBalance, { total, snapshots: [snapshot('2026-09-19', { JPY: 100, CNY: 0 })], currency: 'JPY', today }))
     assert.ok(html.includes(`class="balance-change money${color ? ` ${color}` : ''}"`))
-    assert.ok(html.includes(`>${percentage}</span>`))
+    assert.ok(html.includes(`>${amount}</span>`))
     assert.ok(html.indexOf('</strong>') < html.indexOf('balance-change'))
   }
   const html = renderToStaticMarkup(createElement(TotalBalance, { total: 100, snapshots: [], currency: 'JPY', today }))
   assert.ok(!html.includes('balance-change'))
+})
+
+test('formats whole-yuan changes without signed zero and handles large amounts', () => {
+  for (const [total, expected, color] of [[1234500, '+ 12,345 CNY', 'money-up'], [-150, '- 2 CNY', 'money-down'], [-1, '0 CNY', '']] as const) {
+    const html = renderToStaticMarkup(createElement(TotalBalance, { total, snapshots: [snapshot('2026-09-19', { JPY: 0, CNY: 0 })], currency: 'CNY', today }))
+    assert.ok(html.includes(`>${expected}</span>`))
+    assert.ok(html.includes(`class="balance-change money${color ? ` ${color}` : ''}"`))
+    assert.ok(!html.includes('%'))
+  }
 })
