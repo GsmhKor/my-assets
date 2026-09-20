@@ -150,3 +150,12 @@ export function historyBetween(snapshots: Snapshot[], from: string, to: string):
   }
   return points
 }
+
+export function totalChangePercent(current: number | null, snapshots: Snapshot[], currency: Currency, today: string): number | null {
+  const yesterday = shiftDay(today, -1)
+  const previous = historyBetween(snapshots, yesterday, yesterday)[0]?.snapshot
+  if (current === null || !previous) return null
+  const previousTotal = convertedTotal(previous.totals, currency, previous.rate)
+  if (previousTotal === null || previousTotal === 0) return null
+  return (current - previousTotal) / Math.abs(previousTotal) * 100
+}

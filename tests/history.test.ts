@@ -12,7 +12,7 @@ let server: ViteDevServer
 let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; busy?: boolean }>
 let AssetEditor: typeof import('../src/components/AssetEditor.tsx').AssetEditor
 before(async () => {
-  server = await createServer({ server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom' })
+  server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false, watch: null }, appType: 'custom' })
   History = (await server.ssrLoadModule('/src/components/History.tsx')).History
   AssetEditor = (await server.ssrLoadModule('/src/components/AssetEditor.tsx')).AssetEditor
 })
@@ -40,7 +40,7 @@ test('overlaid 100 to 103 and 50 to 51 lines show 3% versus 2% on one shared sca
     for (const [index, [min, max, percentage]] of [[100, 103, 3], [50, 51, 2]].entries()) {
       assert.ok(stats[index].includes('最高 ' + money(max * unit, currency)))
       assert.ok(stats[index].includes('最低 ' + money(min * unit, currency)))
-      assert.ok(stats[index].includes('+' + money((max - min) * unit, currency)))
+      assert.ok(stats[index].includes(`+ ${max - min} ${currency}`))
       assert.ok(stats[index].includes('+' + percentage.toFixed(2) + '%'))
     }
   }
@@ -56,7 +56,7 @@ test('a missing initial rate does not rebase the total line to a later date', ()
   const html = render([snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })])
   assert.equal(line(html, 'total')?.trim(), '')
   assert.equal(line(html, 'native'), 'M 18 130 L 302 20')
-  assert.match(panels(html)[0], /区间净变化 <strong class="money">待汇率<\/strong>/)
+  assert.match(panels(html)[0], /较昨日变化 <strong class="money">待汇率<\/strong>/)
   assert.ok(html.includes('起点缺少汇率'))
 })
 
@@ -73,7 +73,7 @@ test('zero starting balances do not invent a percentage, while monetary changes 
   assert.ok(line(html, 'total')?.includes('L'))
   const native = panels(html)[1]
   assert.ok(native.includes('起点余额为 0'))
-  assert.ok(native.includes('+' + money(100, 'JPY')))
+  assert.ok(native.includes('+ 100 JPY'))
   const zero = render([snapshot('2026-09-18', { JPY: 0, CNY: 0 })])
   assert.ok(!zero.includes('<svg viewBox="0 0 320 158"'))
   assert.ok(!/NaN|Infinity/.test(zero))

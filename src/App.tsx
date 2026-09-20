@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
+import { TotalBalance } from './components/TotalBalance'
 import { Icon } from './components/Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
 import { EMPTY_LEDGER, convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
@@ -187,12 +188,12 @@ export default function App() {
   }
   return <div className="app-shell">
     <main className="page">
-      <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" /><div className="brand-title"><strong>资金账本</strong><small className="brand-version">{__APP_VERSION__}</small></div></div><button type="button" className="local-badge" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} title="查看更新" onClick={() => void checkAppUpdate()}>{checkingUpdate ? '检查中…' : '查看更新'}</button></header>
+      <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192-v1.7.0.png`} alt="" /><div className="brand-title"><strong>资金账本</strong><small className="brand-version">{__APP_VERSION__}</small></div></div><button type="button" className="local-badge" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} title="查看更新" onClick={() => void checkAppUpdate()}>{checkingUpdate ? '检查中…' : '查看更新'}</button></header>
       {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {(tab === 'home' || tab === 'history') && <div className="currency-switch" role="group" aria-label="登记与统计币种">{(['JPY', 'CNY'] as const).map(value => <button key={value} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}><span>{currencyName(value)}</span><small>{value}</small></button>)}</div>}
         {tab === 'home' && <>
-          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><strong className={`balance-value money${(total ?? 0) < 0 ? ' negative' : ''}`} data-testid="total">{money(total, currency, 0)}</strong><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
+          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today} /><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
           <div className="rate-panel"><div><strong>{rate ? <>1 人民币 = {rate.cnyToJpy.toFixed(4)} 日元<br />10000 日元 = {(10000 / rate.cnyToJpy).toFixed(2)} 人民币</> : '正在等待可用汇率'}</strong><small>{rate ? `${rate.source} · 报价 ${rate.date} · 获取 ${new Date(rate.fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '没有汇率时，仍可保存原币余额。'}</small></div><button className="text-button" disabled={rateBusy || busy} onClick={() => void refreshRate(true)}>{rateBusy ? '更新中…' : '刷新'}</button></div>
           {rateError && <p className="notice small" role="status">{rateError}</p>}
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请刷新或在设置中填写汇率。</p>}

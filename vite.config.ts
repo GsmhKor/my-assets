@@ -13,16 +13,16 @@ export default defineConfig({
     transformIndexHtml: (html) => html.replaceAll('__APP_INSTALL_NAME__', installName),
   }, VitePWA({
     registerType: 'prompt',
-    includeAssets: ['apple-touch-icon.png'],
+    includeAssets: ['apple-touch-icon-v1.7.0.png'],
     manifest: {
       id: base, name: installName, short_name: installName,
       description: '日元与人民币双币种资产统计，保存每日总资产', lang: 'zh-CN',
       start_url: base, scope: base, display: 'standalone',
       background_color: '#fff9ed', theme_color: '#fff9ed', categories: ['finance', 'productivity'],
       icons: [
-        { src: `${base}pwa-192x192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
-        { src: `${base}pwa-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
-        { src: `${base}maskable-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: `${base}pwa-192x192-v1.7.0.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: `${base}pwa-512x512-v1.7.0.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: `${base}maskable-512x512-v1.7.0.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     },
     workbox: {
