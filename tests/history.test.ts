@@ -64,7 +64,7 @@ test('missing middle rates leave gaps and do not interrupt the native line', () 
   const html = render([snapshot('2026-09-16', { JPY: 100, CNY: 10000 }), snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })])
   assert.equal((line(html, 'total')?.match(/M/g) ?? []).length, 2)
   assert.ok(!line(html, 'total')?.includes('L'))
-  assert.equal((line(html, 'native')?.match(/L/g) ?? []).length, 2)
+  assert.equal((line(html, 'native')?.match(/C/g) ?? []).length, 2)
 })
 
 test('zero starting balances do not invent a percentage, while monetary changes remain visible', () => {

@@ -32,7 +32,39 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
   const maxChange = Math.max(0, ...changes)
   const x = (index: number) => 18 + (index / Math.max(points.length - 1, 1)) * 284
   const y = (value: number) => maxChange === minChange ? 75 : 130 - (value - minChange) / (maxChange - minChange) * 110
-  const path = (values: (number | null)[]) => values.map((value, index) => value === null ? '' : `${index === 0 || values[index - 1] === null ? 'M' : 'L'} ${x(index)} ${y(value)}`).join(' ')
+  const path = (values: (number | null)[]) => {
+    const segments: { x: number; y: number }[][] = []
+    let segment: { x: number; y: number }[] = []
+    values.forEach((value, index) => {
+      if (value === null) {
+        segment = []
+        return
+      }
+      if (segment.length === 0) segments.push(segment)
+      segment.push({ x: x(index), y: y(value) })
+    })
+    return segments.map(segment => {
+      const start = `M ${segment[0].x} ${segment[0].y}`
+      if (segment.length < 3) {
+        return start + (segment[1] ? ` L ${segment[1].x} ${segment[1].y}` : '')
+      }
+      const slopes = segment.slice(1).map((point, index) =>
+        (point.y - segment[index].y) / (point.x - segment[index].x))
+      // Monotone cubic interpolation on equally spaced days avoids artificial peaks.
+      const tangents = segment.map((_, index) => {
+        if (index === 0) return slopes[0]
+        if (index === segment.length - 1) return slopes[index - 1]
+        const before = slopes[index - 1]
+        const after = slopes[index]
+        return before * after <= 0 ? 0 : 2 * before * after / (before + after)
+      })
+      return start + segment.slice(1).map((point, index) => {
+        const previous = segment[index]
+        const step = (point.x - previous.x) / 3
+        return ` C ${previous.x + step} ${previous.y + step * tangents[index]} ${point.x - step} ${point.y - step * tangents[index + 1]} ${point.x} ${point.y}`
+      }).join('')
+    }).join(' ')
+  }
   return <>
     <div className="section-heading"><h1>资产日历</h1>{points.length > 0 && <span className="small muted">共 {points.length} 天</span>}</div>
     <section className="card history-chart"><h2>每日资产变化 · {currency}</h2>
