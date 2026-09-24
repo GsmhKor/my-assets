@@ -7,6 +7,7 @@ import { createServer } from 'vite'
 import type { ViteDevServer } from 'vite'
 import type { Asset, Currency, Ledger, Rate, Snapshot, Totals } from '../src/domain/ledger.ts'
 import { money } from '../src/domain/ledger.ts'
+import { historyScale } from '../src/components/historyScale.ts'
 
 let server: ViteDevServer
 let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; busy?: boolean }>
@@ -25,15 +26,24 @@ const render = (snapshots: Snapshot[], currency: Currency = 'JPY') => renderToSt
 }))
 const panels = (html: string) => [...html.matchAll(/<section class="history-series"[^>]*>(.*?)<\/section>/gs)].map(match => match[1])
 const line = (html: string, id: string) => html.match(new RegExp('d="([^"]*)" class="chart-line chart-line-' + id + '"'))?.[1]
+const dots = (html: string, id: string) => [...html.matchAll(new RegExp('<circle cx="([^"]+)" cy="([^"]+)"[^>]*class="chart-dot chart-dot-' + id + '"', 'g'))]
+  .map(match => ({ x: Number(match[1]), y: Number(match[2]) }))
 
-test('overlaid 100 to 103 and 50 to 51 lines show 3% versus 2% on one shared scale in both currencies', () => {
+test('both currencies use actual amounts, with daily changes above a single chart', () => {
   for (const currency of ['JPY', 'CNY'] as const) {
     const totals = currency === 'JPY' ? [{ JPY: 50, CNY: 250 }, { JPY: 51, CNY: 260 }] : [{ JPY: 1000, CNY: 5000 }, { JPY: 1040, CNY: 5100 }]
     const html = render([snapshot('2026-09-17', totals[0]), snapshot('2026-09-18', totals[1])], currency)
     assert.equal((html.match(/<svg viewBox="0 0 320 158"/g) ?? []).length, 1)
-    assert.equal(line(html, 'total'), 'M 18 130 L 302 20')
-    const nativeY = Number(line(html, 'native')?.match(/L 302 ([\d.]+)/)?.[1])
-    assert.ok(Math.abs((130 - 20) / (130 - nativeY) - 1.5) < 1e-10)
+    const total = dots(html, 'total')
+    const native = dots(html, 'native')
+    assert.deepEqual(total.map(point => point.x), native.map(point => point.x))
+    assert.ok(total.every((point, index) => point.y < native[index].y))
+    assert.ok(Math.abs((total[0].y - total[1].y) / (native[0].y - native[1].y) - 3) < 1e-10)
+    assert.ok(html.includes('class="chart-break"'))
+    assert.ok(html.includes('省略无数据区间 · 等比例'))
+    assert.ok(html.indexOf('实际') < html.indexOf('<svg'))
+    assert.ok(html.indexOf('+2.00%') < html.indexOf('<svg'))
+    assert.ok(!html.includes('较起点'))
     const stats = panels(html)
     const unit = currency === 'JPY' ? 1 : 100
     assert.equal(stats.length, 2)
@@ -46,18 +56,25 @@ test('overlaid 100 to 103 and 50 to 51 lines show 3% versus 2% on one shared sca
   }
 })
 
-test('equal percentage changes overlap regardless of balance magnitude', () => {
+test('equal percentage changes retain different amount heights and absolute slopes', () => {
   const html = render([snapshot('2026-09-17', { JPY: 100000, CNY: 4500000 }), snapshot('2026-09-18', { JPY: 101000, CNY: 4545000 })])
-  assert.equal(line(html, 'total'), 'M 18 130 L 302 20')
-  assert.equal(line(html, 'native'), line(html, 'total'))
+  const total = dots(html, 'total')
+  const native = dots(html, 'native')
+  assert.ok(total.every((point, index) => point.y < native[index].y))
+  assert.ok(Math.abs((total[0].y - total[1].y) / (native[0].y - native[1].y) - 10) < 1e-10)
 })
 
-test('a missing initial rate does not rebase the total line to a later date', () => {
+test('a missing initial rate leaves later available total amounts visible', () => {
   const html = render([snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })])
-  assert.equal(line(html, 'total')?.trim(), '')
-  assert.equal(line(html, 'native'), 'M 18 130 L 302 20')
+  assert.equal(dots(html, 'total').length, 1)
+  assert.equal(dots(html, 'total')[0].x, dots(html, 'native')[1].x)
+  assert.equal(dots(html, 'native').length, 2)
   assert.match(panels(html)[0], /较昨日变化 <strong class="money">待汇率<\/strong>/)
-  assert.ok(html.includes('起点缺少汇率'))
+  assert.ok(html.includes('缺少汇率的日期不绘制折算总资产数据'))
+  const missing = render([snapshot('2026-09-18', { JPY: 100, CNY: 10000 }, null)])
+  assert.equal(line(missing, 'total'), '')
+  assert.equal(dots(missing, 'native').length, 1)
+  assert.ok(!missing.includes('class="chart-break"'))
 })
 
 test('missing middle rates leave gaps and do not interrupt the native line', () => {
@@ -67,33 +84,83 @@ test('missing middle rates leave gaps and do not interrupt the native line', () 
   assert.equal((line(html, 'native')?.match(/C/g) ?? []).length, 2)
 })
 
-test('zero starting balances do not invent a percentage, while monetary changes remain visible', () => {
+test('zero balances are plotted without inventing a daily percentage', () => {
   const html = render([snapshot('2026-09-17', { JPY: 0, CNY: 10000 }), snapshot('2026-09-18', { JPY: 100, CNY: 10000 })])
-  assert.equal(line(html, 'native')?.trim(), '')
+  assert.equal(dots(html, 'native').length, 2)
   assert.ok(line(html, 'total')?.includes('L'))
   const native = panels(html)[1]
-  assert.ok(native.includes('起点余额为 0'))
+  assert.ok(native.includes('昨日余额为 0'))
+  assert.ok(!native.includes('%'))
   assert.ok(native.includes('+ 100 JPY'))
   const zero = render([snapshot('2026-09-18', { JPY: 0, CNY: 0 })])
-  assert.ok(!zero.includes('<svg viewBox="0 0 320 158"'))
+  assert.equal(dots(zero, 'total').length, 1)
+  assert.deepEqual(dots(zero, 'total'), dots(zero, 'native'))
   assert.ok(!/NaN|Infinity/.test(zero))
 })
 
-test('negative balances, flat balances and single days produce finite meaningful percentages', () => {
+test('negative balances, flat balances and single days retain true amount ordering', () => {
   const improved = render([snapshot('2026-09-17', { JPY: -100, CNY: 0 }), snapshot('2026-09-18', { JPY: -50, CNY: 0 })])
-  assert.equal(line(improved, 'total'), 'M 18 130 L 302 20')
+  assert.ok(dots(improved, 'total')[0].y > dots(improved, 'total')[1].y)
   assert.ok(improved.includes('+50.00%'))
-  assert.ok(improved.includes('负债减少显示为正'))
   const declined = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 90, CNY: 0 })])
-  assert.equal(line(declined, 'total'), 'M 18 20 L 302 130')
+  assert.ok(dots(declined, 'total')[0].y < dots(declined, 'total')[1].y)
   assert.ok(declined.includes('-10.00%'))
   const flat = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
-  assert.equal(line(flat, 'total'), 'M 18 75 L 302 75')
+  assert.equal(dots(flat, 'total')[0].y, dots(flat, 'total')[1].y)
+  assert.equal(line(flat, 'total'), line(flat, 'native'))
+  assert.ok(!flat.includes('class="chart-break"'))
   assert.ok(flat.includes('0.00%'))
   const single = render([snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
-  assert.equal(line(single, 'total'), 'M 18 75')
+  assert.equal(dots(single, 'total').length, 1)
   assert.ok(!/NaN|Infinity/.test(single))
   assert.equal(panels(render([])).length, 0)
+  const debt = render([snapshot('2026-09-17', { JPY: 2000, CNY: -1000 }), snapshot('2026-09-18', { JPY: 2100, CNY: -1000 })])
+  assert.ok(dots(debt, 'total').every((point, index) => point.y > dots(debt, 'native')[index].y))
+})
+
+test('broken amount axis omits only empty space and preserves the same money scale in both bands', () => {
+  for (const unit of [1, 100]) {
+    const low = { min: 1750000 * unit, max: 1850000 * unit }
+    const high = { min: 6800000 * unit, max: 6950000 * unit }
+    const scale = historyScale([high, low], unit)
+    const gap = scale.axisBreak
+    assert.ok(gap)
+    assert.ok(gap.from > low.max && gap.to < high.min)
+    assert.ok(Math.abs(gap.bottom - gap.top - 26) < 1e-10)
+    assert.ok(Math.abs((scale.y(low.min) - scale.y(low.max)) / (scale.y(high.min) - scale.y(high.max)) - 2 / 3) < 1e-10)
+    assert.ok(scale.y(high.min) < scale.y(low.max))
+    for (const value of [low.min, low.max, high.min, high.max, ...scale.ticks]) {
+      const position = scale.y(value)
+      assert.ok(position >= scale.top - 1e-10 && position <= scale.bottom + 1e-10)
+      assert.ok(position <= gap.top + 1e-10 || position >= gap.bottom - 1e-10)
+    }
+  }
+})
+
+test('overlapping, touching and nearby amount ranges use a continuous common axis', () => {
+  for (const second of [{ min: 150, max: 300 }, { min: 200, max: 300 }, { min: 210, max: 300 }]) {
+    const scale = historyScale([{ min: 100, max: 200 }, second], 1)
+    assert.equal(scale.axisBreak, null)
+    assert.ok(Math.abs((scale.y(100) - scale.y(200)) - (scale.y(200) - scale.y(300))) < 1e-10)
+  }
+  const crossing = render([snapshot('2026-09-17', { JPY: 100, CNY: 100 }), snapshot('2026-09-18', { JPY: 110, CNY: -100 })])
+  assert.ok(!crossing.includes('class="chart-break"'))
+  assert.ok(dots(crossing, 'total')[0].y < dots(crossing, 'native')[0].y)
+  assert.ok(dots(crossing, 'total')[1].y > dots(crossing, 'native')[1].y)
+})
+
+test('empty, constant, negative and very large amount ranges produce finite distinct ticks', () => {
+  for (const ranges of [[], [{ min: null, max: null }], [{ min: 0, max: 0 }], [{ min: -200, max: -100 }, { min: 1000, max: 1000 }], [{ min: 1800000, max: 1800000 }, { min: 6900000, max: 6900000 }], [{ min: 1, max: 2 }, { min: 9e15 - 10, max: 9e15 }]]) {
+    const scale = historyScale(ranges, 1)
+    assert.equal(new Set(scale.ticks).size, scale.ticks.length)
+    for (const value of scale.ticks) assert.ok(Number.isFinite(scale.y(value)))
+    for (const range of ranges) {
+      if (range.min === null || range.max === null) continue
+      assert.ok(scale.y(range.min) >= scale.y(range.max))
+      assert.ok(scale.y(range.min) <= scale.bottom + 1e-10)
+      assert.ok(scale.y(range.max) >= scale.top - 1e-10)
+    }
+  }
 })
 
 test('history offers snapshot correction with the actual saved date but no update-today action', () => {

@@ -3,6 +3,7 @@ import type { Asset, Currency, Ledger } from '../domain/ledger'
 import { convertedTotal, currencyName, historyBetween, money } from '../domain/ledger'
 import { Icon } from './Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './balanceChange'
+import { historyScale } from './historyScale'
 
 const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}%`
 
@@ -16,22 +17,25 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
     { id: 'total', label: '总资产（折算）', amounts },
     { id: 'native', label: nativeLabel, amounts: nativeAmounts },
   ].map(item => {
-    const first = item.amounts[0]
     const last = item.amounts.at(-1)
     // historyBetween fills every calendar day, including carried snapshots.
     const yesterday = item.amounts.at(-2)
     const dailyChange = yesterday != null && last != null ? last - yesterday : null
     const dailyPercent = dailyChange !== null && yesterday != null && yesterday !== 0 ? dailyChange / Math.abs(yesterday) * 100 : null
     const valid = item.amounts.filter((amount): amount is number => amount !== null)
-    const changes = item.amounts.map(amount => first == null || first === 0 || amount === null ? null : (amount - first) / Math.abs(first) * 100)
-    return { ...item, first, changes, yesterday, dailyChange, dailyPercent,
+    return { ...item, last, yesterday, dailyChange, dailyPercent,
       min: valid.length ? Math.min(...valid) : null, max: valid.length ? Math.max(...valid) : null }
   })
-  const changes = series.flatMap(item => item.changes).filter((value): value is number => value !== null)
-  const minChange = Math.min(0, ...changes)
-  const maxChange = Math.max(0, ...changes)
-  const x = (index: number) => 18 + (index / Math.max(points.length - 1, 1)) * 284
-  const y = (value: number) => maxChange === minChange ? 75 : 130 - (value - minChange) / (maxChange - minChange) * 110
+  const unit = currency === 'JPY' ? 1 : 100
+  const { y, ticks, axisBreak, top, bottom } = historyScale(series, unit)
+  const x = (index: number) => 56 + (index / Math.max(points.length - 1, 1)) * 252
+  const tickLabel = (value: number) => {
+    const amount = value / unit
+    const divisor = Math.abs(amount) >= 100_000_000 ? 100_000_000 : Math.abs(amount) >= 10_000 ? 10_000 : 1
+    const spacing = Math.min(...ticks.slice(1).map((tick, index) => Math.abs(tick - ticks[index]))) / unit / divisor
+    const digits = Math.max(0, Math.min(8, Math.ceil(-Math.log10(spacing)) + 1))
+    return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: digits }).format(amount / divisor)}${divisor === 100_000_000 ? '亿' : divisor === 10_000 ? '万' : ''}`
+  }
   const path = (values: (number | null)[]) => {
     const segments: { x: number; y: number }[][] = []
     let segment: { x: number; y: number }[] = []
@@ -69,27 +73,31 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
     <div className="section-heading"><h1>资产日历</h1>{points.length > 0 && <span className="small muted">共 {points.length} 天</span>}</div>
     <section className="card history-chart"><h2>每日资产变化 · {currency}</h2>
       {points.length ? <>
-        <div className="chart-legend">{series.map(item => <span key={item.id}><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" />{item.label}</span>)}</div>
-        {changes.length > 0 && <>
-          <svg viewBox="0 0 320 158" role="img" aria-label={`${from} 至 ${today} 总资产与${nativeLabel}涨跌幅对比，以 ${points[0].day} 为起点，共用百分比刻度，详细金额见下方日期列表`}>
-            <path d="M18 20H302 M18 130H302" className="chart-axis" />
-            <path d={`M18 ${y(0)}H302`} className="chart-zero" />
-            {series.map(item => <g key={item.id}>
-              <path d={path(item.changes)} className={`chart-line chart-line-${item.id}`} />
-              {item.changes.map((change, index) => change !== null && <circle key={points[index].day} cx={x(index)} cy={y(change)} r={item.id === 'native' ? 2 : 3.5} className={`chart-dot chart-dot-${item.id}`}><title>{`${points[index].day} · ${item.label}：${money(item.amounts[index], currency, 0)} · 较起点 ${percent(change)}`}</title></circle>)}
-            </g>)}
-          </svg>
-          <div className="chart-labels"><span>{points[0].day}</span><span>{points.at(-1)?.day}</span></div>
-        </>}
+        <div className="history-summaries">
         {series.map(item => <section className="history-series" aria-label={item.label} key={item.id}>
-            <h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" />{item.label}</h3>
+            <div className="history-series-heading"><h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" />{item.label}</h3><strong className="money">{money(item.last ?? null, currency, 0)}</strong></div>
             <p className="chart-change">较昨日变化 <strong className={`money${moneyChangeClass(item.dailyChange)}`}>{item.yesterday === undefined ? '暂无昨日记录' : formatMoneyChange(item.dailyChange, currency)}</strong>{item.dailyPercent !== null && <span className={`money${moneyChangeClass(item.dailyChange)}`}>（{percent(item.dailyPercent)}）</span>}{item.yesterday === 0 && item.dailyChange !== null && <span title="昨日余额为 0，无法计算变化百分比">（昨日余额为 0）</span>}</p>
             <div className="chart-labels"><span>最高 {money(item.max, currency, 0)}</span><span>最低 {money(item.min, currency, 0)}</span></div>
-            {item.first === 0 && <p className="small muted chart-note">起点余额为 0，无法计算涨跌幅；仍显示金额统计。</p>}
-            {item.first == null && <p className="small muted chart-note">起点缺少汇率，暂无法比较涨跌幅；可用日期的金额仍保留。</p>}
-            {item.first != null && item.first < 0 && <p className="small muted chart-note">起点为负余额，变化按起点余额的绝对值计算；负债减少显示为正。</p>}
           </section>
         )}
+        </div>
+        <svg viewBox="0 0 320 158" role="img" aria-label={`${from} 至 ${today} 总资产与${nativeLabel}金额走势，共用 ${currency} 金额刻度${axisBreak ? `，省略 ${money(axisBreak.from, currency)} 至 ${money(axisBreak.to, currency)} 的无数据区间，上下刻度等比例` : ''}，详细金额见下方日期列表`}>
+          {ticks.map(tick => <g key={tick}>
+            <path d={`M56 ${y(tick)}H308`} className={tick === 0 ? 'chart-zero' : 'chart-axis'} />
+            <text x="48" y={y(tick)} dy="0.35em" textAnchor="end" className="chart-tick"><title>{money(tick, currency)}</title>{tickLabel(tick)}</text>
+          </g>)}
+          <path d={axisBreak ? `M56 ${top}V${axisBreak.top} M56 ${axisBreak.bottom}V${bottom}` : `M56 ${top}V${bottom}`} className="chart-axis" />
+          {axisBreak && <g className="chart-break">
+            <title>{`省略 ${money(axisBreak.from, currency)} 至 ${money(axisBreak.to, currency)} 的无数据区间，上下刻度等比例`}</title>
+            <path d={`M52 ${axisBreak.top + 9}l8 -4 m-8 10l8 -4 M304 ${axisBreak.top + 9}l8 -4 m-8 10l8 -4`} />
+            <text x="182" y={(axisBreak.top + axisBreak.bottom) / 2} dy="0.35em" textAnchor="middle">省略无数据区间 · 等比例</text>
+          </g>}
+          {series.map(item => <g key={item.id}>
+            <path d={path(item.amounts)} className={`chart-line chart-line-${item.id}`} />
+            {item.amounts.map((amount, index) => amount !== null && <circle key={points[index].day} cx={x(index)} cy={y(amount)} r={item.id === 'native' ? 2 : 3.5} className={`chart-dot chart-dot-${item.id}`}><title>{`${points[index].day} · ${item.label}：${money(amount, currency, 0)}`}</title></circle>)}
+          </g>)}
+        </svg>
+        <div className="chart-labels history-dates"><span>{points[0].day}</span><span>{points.at(-1)?.day}</span></div>
         {amounts.some(amount => amount === null) && <p className="small muted chart-note">缺少汇率的日期不绘制折算总资产数据，实际余额不受影响。</p>}
       </> : <p className="empty-copy">还没有资产记录。首次保存后会从记录当天开始展示历史。</p>}
     </section>
