@@ -13,6 +13,11 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
   const amounts = points.map(point => convertedTotal(point.snapshot.totals, currency, point.snapshot.rate))
   const nativeAmounts = points.map(point => point.snapshot.totals[currency])
   const nativeLabel = `实际${currencyName(currency)}资产`
+  const latestTotal = amounts.at(-1)
+  const latestNative = nativeAmounts.at(-1)
+  const nativeShare = latestTotal != null && latestTotal !== 0 && latestNative != null
+    ? `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(latestNative / latestTotal * 100)}%`
+    : '—'
   const series = [
     { id: 'total', label: '总资产（折算）', amounts },
     { id: 'native', label: nativeLabel, amounts: nativeAmounts },
@@ -75,8 +80,8 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
       {points.length ? <>
         <div className="history-summaries">
         {series.map(item => <section className="history-series" aria-label={item.label} key={item.id}>
-            <div className="history-series-heading"><h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" />{item.label}</h3><strong className="money">{money(item.last ?? null, currency, 0)}</strong></div>
-            <p className="chart-change">较昨日变化 <strong className={`money${moneyChangeClass(item.dailyChange)}`}>{item.yesterday === undefined ? '暂无昨日记录' : formatMoneyChange(item.dailyChange, currency)}</strong>{item.dailyPercent !== null && <span className={`money${moneyChangeClass(item.dailyChange)}`}>（{percent(item.dailyPercent)}）</span>}{item.yesterday === 0 && item.dailyChange !== null && <span title="昨日余额为 0，无法计算变化百分比">（昨日余额为 0）</span>}</p>
+            <div className="history-series-heading"><h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" /><span>{item.label}{item.id === 'native' && <span title="占当日同币种折算总资产的比例">({nativeShare})</span>}</span></h3><strong className="money">{money(item.last ?? null, currency, 0)}</strong></div>
+            <p className="chart-change"><span>较昨日变化</span><span className="chart-change-values"><strong className={`money${moneyChangeClass(item.dailyChange)}`}>{item.yesterday === undefined ? '暂无昨日记录' : formatMoneyChange(item.dailyChange, currency)}</strong>{item.dailyPercent !== null && <span className={`money${moneyChangeClass(item.dailyChange)}`}>（{percent(item.dailyPercent)}）</span>}{item.yesterday === 0 && item.dailyChange !== null && <span title="昨日余额为 0，无法计算变化百分比">（昨日余额为 0）</span>}</span></p>
             <div className="chart-labels"><span>最高 {money(item.max, currency, 0)}</span><span>最低 {money(item.min, currency, 0)}</span></div>
           </section>
         )}
@@ -90,7 +95,6 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
           {axisBreak && <g className="chart-break">
             <title>{`省略 ${money(axisBreak.from, currency)} 至 ${money(axisBreak.to, currency)} 的无数据区间，上下刻度等比例`}</title>
             <path d={`M52 ${axisBreak.top + 9}l8 -4 m-8 10l8 -4 M304 ${axisBreak.top + 9}l8 -4 m-8 10l8 -4`} />
-            <text x="182" y={(axisBreak.top + axisBreak.bottom) / 2} dy="0.35em" textAnchor="middle">省略无数据区间 · 等比例</text>
           </g>}
           {series.map(item => <g key={item.id}>
             <path d={path(item.amounts)} className={`chart-line chart-line-${item.id}`} />

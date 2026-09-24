@@ -40,7 +40,7 @@ test('both currencies use actual amounts, with daily changes above a single char
     assert.ok(total.every((point, index) => point.y < native[index].y))
     assert.ok(Math.abs((total[0].y - total[1].y) / (native[0].y - native[1].y) - 3) < 1e-10)
     assert.ok(html.includes('class="chart-break"'))
-    assert.ok(html.includes('省略无数据区间 · 等比例'))
+    assert.ok(!html.includes('省略无数据区间 · 等比例'))
     assert.ok(html.indexOf('实际') < html.indexOf('<svg'))
     assert.ok(html.indexOf('+2.00%') < html.indexOf('<svg'))
     assert.ok(!html.includes('较起点'))
@@ -53,6 +53,18 @@ test('both currencies use actual amounts, with daily changes above a single char
       assert.ok(stats[index].includes(`+ ${max - min} ${currency}`))
       assert.ok(stats[index].includes('+' + percentage.toFixed(2) + '%'))
     }
+  }
+})
+
+test('native share uses the latest total converted into the selected currency', () => {
+  const snapshots = [snapshot('2026-09-17', { JPY: 500, CNY: 2500 }), snapshot('2026-09-18', { JPY: 200, CNY: 4000 })]
+  const heading = (html: string) => panels(html)[1].match(/<h3>(.*?)<\/h3>/s)?.[1].replace(/<[^>]+>/g, '')
+  assert.equal(heading(render(snapshots, 'JPY')), '实际日元资产(20%)')
+  assert.equal(heading(render(snapshots, 'CNY')), '实际人民币资产(80%)')
+  assert.equal(heading(render([snapshot('2026-09-18', { JPY: 100, CNY: 1000 })])), '实际日元资产(33.33%)')
+  assert.equal(heading(render([snapshot('2026-09-18', { JPY: 0, CNY: 1000 })])), '实际日元资产(0%)')
+  for (const saved of [snapshot('2026-09-18', { JPY: 200, CNY: -1000 }), snapshot('2026-09-18', { JPY: 200, CNY: 1000 }, null)]) {
+    assert.equal(heading(render([saved])), '实际日元资产(—)')
   }
 })
 
@@ -69,7 +81,7 @@ test('a missing initial rate leaves later available total amounts visible', () =
   assert.equal(dots(html, 'total').length, 1)
   assert.equal(dots(html, 'total')[0].x, dots(html, 'native')[1].x)
   assert.equal(dots(html, 'native').length, 2)
-  assert.match(panels(html)[0], /较昨日变化 <strong class="money">待汇率<\/strong>/)
+  assert.match(panels(html)[0], /class="chart-change-values"><strong class="money">待汇率<\/strong>/)
   assert.ok(html.includes('缺少汇率的日期不绘制折算总资产数据'))
   const missing = render([snapshot('2026-09-18', { JPY: 100, CNY: 10000 }, null)])
   assert.equal(line(missing, 'total'), '')
@@ -90,7 +102,7 @@ test('zero balances are plotted without inventing a daily percentage', () => {
   assert.ok(line(html, 'total')?.includes('L'))
   const native = panels(html)[1]
   assert.ok(native.includes('昨日余额为 0'))
-  assert.ok(!native.includes('%'))
+  assert.ok(!native.match(/<p class="chart-change">(.*?)<\/p>/s)?.[1].includes('%'))
   assert.ok(native.includes('+ 100 JPY'))
   const zero = render([snapshot('2026-09-18', { JPY: 0, CNY: 0 })])
   assert.equal(dots(zero, 'total').length, 1)
