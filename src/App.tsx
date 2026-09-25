@@ -181,11 +181,12 @@ export default function App() {
     return rows.map(asset => {
       const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
       const change = balanceChange(asset, previous)
+      const balance = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(asset.amountMinor / (asset.currency === 'JPY' ? 1 : 100))
       return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source} ${asset.currency}`}>
         <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span>
         <span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)}<time dateTime={asset.updatedDay} title={`更新于 ${asset.updatedDay}`}>{asset.updatedDay}</time></small></span>
         <span className="asset-money money">
-          <span className={`money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{money(asset.amountMinor, asset.currency)}</span>
+          <span className={`money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
           {change !== null && <small className={`asset-change money${moneyChangeClass(change)}`} title={`较 ${previous!.day} ${formatMoneyChange(change, asset.currency)}`}>{formatMoneyChange(change, asset.currency, { showCurrency: false })}</small>}
           {asset.currency !== currency ? <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small> : change === null && <small>点击更新余额</small>}
         </span>
