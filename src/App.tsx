@@ -183,7 +183,7 @@ export default function App() {
       const change = balanceChange(asset, previous)
       return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source} ${asset.currency}`}>
         <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span>
-        <span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)} · 更新于 {asset.updatedDay}</small></span>
+        <span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)}<time dateTime={asset.updatedDay} title={`更新于 ${asset.updatedDay}`}>{asset.updatedDay}</time></small></span>
         <span className="asset-money money">
           <span className={`money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{money(asset.amountMinor, asset.currency)}</span>
           {change !== null && <small className={`asset-change money${moneyChangeClass(change)}`} title={`较 ${previous!.day} ${formatMoneyChange(change, asset.currency)}`}>{formatMoneyChange(change, asset.currency, { showCurrency: false })}</small>}
