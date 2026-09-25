@@ -53,7 +53,7 @@ test('omits missing comparisons but supports a zero previous balance', () => {
 })
 
 test('renders signed change amounts with gain/loss colors and neutral zero', () => {
-  for (const [total, amount, color] of [[103, '+ 3 JPY', 'money-up'], [98, '- 2 JPY', 'money-down'], [100, '0 JPY', '']] as const) {
+  for (const [total, amount, color] of [[103, '+ 3', 'money-up'], [98, '- 2', 'money-down'], [100, '0', '']] as const) {
     const html = renderToStaticMarkup(createElement(TotalBalance, { total, snapshots: [snapshot('2026-09-19', { JPY: 100, CNY: 0 })], currency: 'JPY', today }))
     assert.ok(html.includes(`class="balance-change money${color ? ` ${color}` : ''}"`))
     assert.ok(html.includes(`>${amount}</span>`))
@@ -64,7 +64,7 @@ test('renders signed change amounts with gain/loss colors and neutral zero', () 
 })
 
 test('formats whole-yuan changes without signed zero and handles large amounts', () => {
-  for (const [total, expected, color] of [[1234500, '+ 12,345 CNY', 'money-up'], [-150, '- 2 CNY', 'money-down'], [-1, '0 CNY', '']] as const) {
+  for (const [total, expected, color] of [[1234500, '+ 12,345', 'money-up'], [-150, '- 2', 'money-down'], [-1, '0', '']] as const) {
     const html = renderToStaticMarkup(createElement(TotalBalance, { total, snapshots: [snapshot('2026-09-19', { JPY: 0, CNY: 0 })], currency: 'CNY', today }))
     assert.ok(html.includes(`>${expected}</span>`))
     assert.ok(html.includes(`class="balance-change money${color ? ` ${color}` : ''}"`))

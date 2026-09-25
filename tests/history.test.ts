@@ -50,7 +50,7 @@ test('both currencies use actual amounts, with daily changes above a single char
     for (const [index, [min, max, percentage]] of [[100, 103, 3], [50, 51, 2]].entries()) {
       assert.ok(stats[index].includes('最高 ' + money(max * unit, currency)))
       assert.ok(stats[index].includes('最低 ' + money(min * unit, currency)))
-      assert.ok(stats[index].includes(`+ ${max - min} ${currency}`))
+      assert.ok(stats[index].includes(`>+ ${max - min}</strong>`))
       assert.ok(stats[index].includes('+' + percentage.toFixed(2) + '%'))
     }
   }
@@ -103,7 +103,7 @@ test('zero balances are plotted without inventing a daily percentage', () => {
   const native = panels(html)[1]
   assert.ok(native.includes('昨日余额为 0'))
   assert.ok(!native.match(/<p class="chart-change">(.*?)<\/p>/s)?.[1].includes('%'))
-  assert.ok(native.includes('+ 100 JPY'))
+  assert.ok(native.includes('>+ 100</strong>'))
   const zero = render([snapshot('2026-09-18', { JPY: 0, CNY: 0 })])
   assert.equal(dots(zero, 'total').length, 1)
   assert.deepEqual(dots(zero, 'total'), dots(zero, 'native'))

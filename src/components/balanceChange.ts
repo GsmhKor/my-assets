@@ -16,9 +16,9 @@ export function moneyChangeClass(change: number | null): string {
   return change === null || change === 0 ? '' : change > 0 ? ' money-up' : ' money-down'
 }
 
-export function formatMoneyChange(change: number | null, currency: Currency): string {
+export function formatMoneyChange(change: number | null, currency: Currency, { showCurrency = true }: { showCurrency?: boolean } = {}): string {
   if (change === null) return '待汇率'
   const amount = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(Math.abs(change) / (currency === 'JPY' ? 1 : 100))
   const sign = change > 0 ? '+ ' : change < 0 ? '- ' : ''
-  return `${sign}${amount} ${currency}`
+  return `${sign}${amount}${showCurrency ? ` ${currency}` : ''}`
 }

@@ -182,7 +182,14 @@ export default function App() {
       const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
       const change = balanceChange(asset, previous)
       return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source} ${asset.currency}`}>
-        <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span><span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)} · 更新于 {asset.updatedDay}</small></span><span className="asset-money money"><span className={`money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{money(asset.amountMinor, asset.currency)}</span>{change !== null && <small className={`money${moneyChangeClass(change)}`}>较 {previous!.day} {formatMoneyChange(change, asset.currency)}</small>}{asset.currency !== currency ? <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small> : change === null && <small>点击更新余额</small>}</span><Icon name="chevron-right" size={15} />
+        <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span>
+        <span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)} · 更新于 {asset.updatedDay}</small></span>
+        <span className="asset-money money">
+          <span className={`money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{money(asset.amountMinor, asset.currency)}</span>
+          {change !== null && <small className={`asset-change money${moneyChangeClass(change)}`} title={`较 ${previous!.day} ${formatMoneyChange(change, asset.currency)}`}>{formatMoneyChange(change, asset.currency, { showCurrency: false })}</small>}
+          {asset.currency !== currency ? <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small> : change === null && <small>点击更新余额</small>}
+        </span>
+        <Icon name="chevron-right" size={15} />
       </button>
     })
   }
