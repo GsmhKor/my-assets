@@ -215,7 +215,7 @@ export default function App() {
         </>}
         {tab === 'assets' && <>
           <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>
-          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><label className="asset-sort"><span>金额</span><select aria-label="资产金额排序" value={assetSort} onChange={event => { const value = event.target.value === 'asc' ? 'asc' : 'desc'; setAssetSort(value); remember('asset-sort', value) }}><option value="desc">从高到低</option><option value="asc">从低到高</option></select></label></div>
+          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><label className="asset-sort"><span>金额</span><select aria-label="资产金额排序" value={assetSort} onChange={event => { const value = event.target.value === 'asc' ? 'asc' : 'desc'; setAssetSort(value); remember('asset-sort', value) }}><option value="desc">降序</option><option value="asc">升序</option></select></label></div>
           {needsSortRate && <p className="small muted asset-sort-note">缺少汇率，暂按币种分别排序。</p>}
           <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
         </>}
