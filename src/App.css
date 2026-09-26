@@ -15,6 +15,6 @@
 :root{--money-up:#237447;--money-down:#b53d3d}:root[data-theme=dark]{--money-up:#82cba0;--money-down:#ff9990}.money-up{color:var(--money-up)!important}.money-down{color:var(--money-down)!important}
 .app-update .text-button{min-height:44px;padding:10px 12px;flex-shrink:0}
 .balance-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px}.balance-line .balance-value{min-width:0;max-width:100%}.balance-change{font-size:12px;font-weight:600;line-height:1.5;min-width:0;max-width:100%;color:var(--muted)}
-.asset-copy time{display:block;white-space:nowrap}.asset-money{min-width:0}.asset-change{white-space:nowrap}
+.asset-copy time{display:block;white-space:nowrap}.asset-money{min-width:0}.asset-money .asset-change{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px 4px;font-weight:600}.asset-change>span{max-width:100%}
 .local-badge{min-height:44px}.local-badge:not(:disabled):hover{background:var(--soft)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
