@@ -194,8 +194,8 @@ export default function App() {
         <span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)}<time dateTime={asset.updatedDay} title={`更新于 ${asset.updatedDay}`}>{asset.updatedDay}</time></small></span>
         <span className="asset-money money">
           <span className={`money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
-          {change !== null && <small className={`asset-change money${moneyChangeClass(change)}`} title={`较 ${previous!.day} ${formatMoneyChange(change, asset.currency)}；${changePercent === null ? '原余额为 0，无法计算变化百分比' : `变化 ${percentLabel}`}`}><span>{formatMoneyChange(change, asset.currency, { showCurrency: false })}</span><span>（{percentLabel}）</span></small>}
-          {asset.currency !== currency ? <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small> : change === null && <small>点击更新余额</small>}
+          {change === null || change === 0 ? <small title={change === null ? '暂无可比历史记录' : `较 ${previous!.day} 无变化`}>无变化</small> : <small className={`asset-change money${moneyChangeClass(change)}`} title={`较 ${previous!.day} ${formatMoneyChange(change, asset.currency)}；${changePercent === null ? '原余额为 0，无法计算变化百分比' : `变化 ${percentLabel}`}`}><span>{formatMoneyChange(change, asset.currency, { showCurrency: false })}</span><span>（{percentLabel}）</span></small>}
+          {asset.currency !== currency && <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small>}
         </span>
         <Icon name="chevron-right" size={15} />
       </button>

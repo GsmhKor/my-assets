@@ -12,10 +12,12 @@ import { historyScale } from '../src/components/historyScale.ts'
 let server: ViteDevServer
 let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; busy?: boolean }>
 let AssetEditor: typeof import('../src/components/AssetEditor.tsx').AssetEditor
+let HistoryDay: typeof import('../src/components/HistoryList.tsx').HistoryDay
 before(async () => {
   server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false, watch: null }, appType: 'custom' })
   History = (await server.ssrLoadModule('/src/components/History.tsx')).History
   AssetEditor = (await server.ssrLoadModule('/src/components/AssetEditor.tsx')).AssetEditor
+  HistoryDay = (await server.ssrLoadModule('/src/components/HistoryList.tsx')).HistoryDay
 })
 after(async () => { await server?.close() })
 
@@ -180,18 +182,39 @@ test('empty, constant, negative and very large amount ranges produce finite dist
 
 test('history offers snapshot correction with the actual saved date but no update-today action', () => {
   const asset: Asset = { id: 'one', source: '银行账户', currency: 'JPY', amountMinor: 100, updatedDay: '2026-09-17', updatedAt: '2026-09-18T00:00:00Z' }
-  const html = render([{ ...snapshot('2026-09-17', { JPY: 100, CNY: 0 }), assets: [asset] }])
+  const saved = { ...snapshot('2026-09-17', { JPY: 100, CNY: 0 }), assets: [asset] }
+  const renderDay = (day: string, open: boolean, busy = false) => renderToStaticMarkup(createElement(HistoryDay, {
+    point: { day, snapshot: saved, carried: day !== saved.day }, currency: 'JPY', today: '2026-09-18', onCorrect: () => {}, onToggle: () => {}, open, busy,
+  }))
+  const closed = renderDay('2026-09-17', false)
+  assert.ok(!closed.includes('银行账户'))
+  assert.ok(!closed.includes('day-detail'))
+  const html = renderDay('2026-09-17', true) + renderDay('2026-09-18', true)
   assert.ok(html.includes('银行账户'))
   assert.ok(html.includes(money(100, 'JPY')))
   assert.ok(!html.includes('更新为今日余额'))
   assert.ok(html.includes('修改历史金额'))
   assert.ok(html.includes('修改 2026-09-17 快照'))
   assert.ok(!html.includes('修改 2026-09-18 快照'))
-  const disabled = renderToStaticMarkup(createElement(History, {
-    ledger: { revision: 1, assets: [asset], snapshots: [{ ...snapshot('2026-09-17', { JPY: 100, CNY: 0 }), assets: [asset] }] },
-    currency: 'JPY', today: '2026-09-18', onCorrect: () => {}, busy: true,
-  }))
+  const disabled = renderDay('2026-09-17', true, true)
   assert.match(disabled, /class="text-button" disabled=""/)
+})
+
+test('history initially mounts only the latest three days while keeping the full chart and earlier comparison', () => {
+  const html = render([
+    snapshot('2026-09-14', { JPY: 100, CNY: 0 }),
+    snapshot('2026-09-16', { JPY: 150, CNY: 0 }),
+  ])
+  const cards = [...html.matchAll(/<details\b[^>]*>(.*?)<\/details>/gs)].map(match => match[1])
+  assert.equal(cards.length, 3)
+  assert.deepEqual(cards.map(card => card.match(/<strong>(\d{4}-\d{2}-\d{2})/)?.[1]), ['2026-09-18', '2026-09-17', '2026-09-16'])
+  assert.ok(cards[2].includes('较 2026-09-14 + 50 JPY'))
+  assert.equal(curvePoints(html, 'total').length, 5)
+  assert.ok(html.includes('展开全部历史'))
+  assert.ok(html.includes('aria-expanded="false"'))
+  assert.ok(!html.includes('day-detail'))
+  assert.ok(!render([snapshot('2026-09-16', { JPY: 100, CNY: 0 })]).includes('展开全部历史'))
+  assert.ok(!render([]).includes('展开全部历史'))
 })
 
 test('snapshot editor locks source and currency and explains affected dates and current balance effects', () => {
