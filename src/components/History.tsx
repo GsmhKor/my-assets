@@ -98,7 +98,7 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
           </g>}
           {series.map(item => <g key={item.id}>
             <path d={path(item.amounts)} className={`chart-line chart-line-${item.id}`} />
-            {item.amounts.map((amount, index) => amount !== null && <circle key={points[index].day} cx={x(index)} cy={y(amount)} r={item.id === 'native' ? 2 : 3.5} className={`chart-dot chart-dot-${item.id}`}><title>{`${points[index].day} · ${item.label}：${money(amount, currency, 0)}`}</title></circle>)}
+            {item.amounts.map((amount, index) => amount !== null && <circle key={points[index].day} cx={x(index)} cy={y(amount)} r={2} className={`chart-dot chart-dot-${item.id}`}><title>{`${points[index].day} · ${item.label}：${money(amount, currency, 0)}`}</title></circle>)}
           </g>)}
         </svg>
         <div className="chart-labels history-dates"><span>{points[0].day}</span><span>{points.at(-1)?.day}</span></div>

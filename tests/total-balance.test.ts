@@ -69,5 +69,31 @@ test('formats whole-yuan changes without signed zero and handles large amounts',
     assert.ok(html.includes(`>${expected}</span>`))
     assert.ok(html.includes(`class="balance-change money${color ? ` ${color}` : ''}"`))
     assert.ok(!html.includes('%'))
+    assert.ok(html.includes('（—）'))
+  }
+})
+
+test('renders daily percentages using the saved baseline in either currency, including debt and unchanged totals', () => {
+  for (const [currency, totals, total, expected] of [
+    ['JPY', { JPY: 1000, CNY: 5000 }, 2100, '+5.00%'],
+    ['CNY', { JPY: 1000, CNY: 5000 }, 9500, '-5.00%'],
+    ['JPY', { JPY: -100, CNY: 0 }, -80, '+20.00%'],
+    ['JPY', { JPY: -100, CNY: 0 }, -120, '-20.00%'],
+    ['JPY', { JPY: 100, CNY: 0 }, 100, '0.00%'],
+  ] as const) {
+    const html = renderToStaticMarkup(createElement(TotalBalance, { total, snapshots: [snapshot('2026-09-18', totals)], currency, today }))
+    assert.ok(html.includes(`（${expected}）`))
+  }
+})
+
+test('does not render a percentage when the total comparison is unavailable', () => {
+  for (const [total, snapshots] of [
+    [100, []],
+    [null, [snapshot('2026-09-19', { JPY: 100, CNY: 0 })]],
+    [100, [snapshot('2026-09-19', { JPY: 100, CNY: 100 }, null)]],
+  ] as const) {
+    const html = renderToStaticMarkup(createElement(TotalBalance, { total, snapshots: [...snapshots], currency: 'JPY', today }))
+    assert.ok(!html.includes('balance-change'))
+    assert.ok(!html.includes('%'))
   }
 })
