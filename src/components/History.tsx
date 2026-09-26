@@ -94,11 +94,10 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
           <path d={axisBreak ? `M56 ${top}V${axisBreak.top} M56 ${axisBreak.bottom}V${bottom}` : `M56 ${top}V${bottom}`} className="chart-axis" />
           {axisBreak && <g className="chart-break">
             <title>{`省略 ${money(axisBreak.from, currency)} 至 ${money(axisBreak.to, currency)} 的无数据区间，上下刻度等比例`}</title>
-            <path d={`M52 ${axisBreak.top + 9}l8 -4 m-8 10l8 -4 M304 ${axisBreak.top + 9}l8 -4 m-8 10l8 -4`} />
+            <path d={`M56 ${axisBreak.top + 4}V${axisBreak.bottom - 4}`} />
           </g>}
           {series.map(item => <g key={item.id}>
             <path d={path(item.amounts)} className={`chart-line chart-line-${item.id}`} />
-            {item.amounts.map((amount, index) => amount !== null && <circle key={points[index].day} cx={x(index)} cy={y(amount)} r={2} className={`chart-dot chart-dot-${item.id}`}><title>{`${points[index].day} · ${item.label}：${money(amount, currency, 0)}`}</title></circle>)}
           </g>)}
         </svg>
         <div className="chart-labels history-dates"><span>{points[0].day}</span><span>{points.at(-1)?.day}</span></div>

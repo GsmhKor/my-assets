@@ -26,16 +26,19 @@ const render = (snapshots: Snapshot[], currency: Currency = 'JPY') => renderToSt
 }))
 const panels = (html: string) => [...html.matchAll(/<section class="history-series"[^>]*>(.*?)<\/section>/gs)].map(match => match[1])
 const line = (html: string, id: string) => html.match(new RegExp('d="([^"]*)" class="chart-line chart-line-' + id + '"'))?.[1]
-const dots = (html: string, id: string) => [...html.matchAll(new RegExp('<circle cx="([^"]+)" cy="([^"]+)"[^>]*class="chart-dot chart-dot-' + id + '"', 'g'))]
-  .map(match => ({ x: Number(match[1]), y: Number(match[2]) }))
+const curvePoints = (html: string, id: string) => [...(line(html, id) ?? '').matchAll(/[MLC]\s+([^MLC]+)/g)]
+  .map(match => {
+    const coordinates = match[1].trim().split(/\s+/).map(Number)
+    return { x: coordinates.at(-2)!, y: coordinates.at(-1)! }
+  })
 
 test('both currencies use actual amounts, with daily changes above a single chart', () => {
   for (const currency of ['JPY', 'CNY'] as const) {
     const totals = currency === 'JPY' ? [{ JPY: 50, CNY: 250 }, { JPY: 51, CNY: 260 }] : [{ JPY: 1000, CNY: 5000 }, { JPY: 1040, CNY: 5100 }]
     const html = render([snapshot('2026-09-17', totals[0]), snapshot('2026-09-18', totals[1])], currency)
     assert.equal((html.match(/<svg viewBox="0 0 320 158"/g) ?? []).length, 1)
-    const total = dots(html, 'total')
-    const native = dots(html, 'native')
+    const total = curvePoints(html, 'total')
+    const native = curvePoints(html, 'native')
     assert.deepEqual(total.map(point => point.x), native.map(point => point.x))
     assert.ok(total.every((point, index) => point.y < native[index].y))
     assert.ok(Math.abs((total[0].y - total[1].y) / (native[0].y - native[1].y) - 3) < 1e-10)
@@ -70,22 +73,22 @@ test('native share uses the latest total converted into the selected currency', 
 
 test('equal percentage changes retain different amount heights and absolute slopes', () => {
   const html = render([snapshot('2026-09-17', { JPY: 100000, CNY: 4500000 }), snapshot('2026-09-18', { JPY: 101000, CNY: 4545000 })])
-  const total = dots(html, 'total')
-  const native = dots(html, 'native')
+  const total = curvePoints(html, 'total')
+  const native = curvePoints(html, 'native')
   assert.ok(total.every((point, index) => point.y < native[index].y))
   assert.ok(Math.abs((total[0].y - total[1].y) / (native[0].y - native[1].y) - 10) < 1e-10)
 })
 
 test('a missing initial rate leaves later available total amounts visible', () => {
   const html = render([snapshot('2026-09-17', { JPY: 100, CNY: 10000 }, null), snapshot('2026-09-18', { JPY: 200, CNY: 10000 })])
-  assert.equal(dots(html, 'total').length, 1)
-  assert.equal(dots(html, 'total')[0].x, dots(html, 'native')[1].x)
-  assert.equal(dots(html, 'native').length, 2)
+  assert.equal(curvePoints(html, 'total').length, 1)
+  assert.equal(curvePoints(html, 'total')[0].x, curvePoints(html, 'native')[1].x)
+  assert.equal(curvePoints(html, 'native').length, 2)
   assert.match(panels(html)[0], /class="chart-change-values"><strong class="money">待汇率<\/strong>/)
   assert.ok(html.includes('缺少汇率的日期不绘制折算总资产数据'))
   const missing = render([snapshot('2026-09-18', { JPY: 100, CNY: 10000 }, null)])
   assert.equal(line(missing, 'total'), '')
-  assert.equal(dots(missing, 'native').length, 1)
+  assert.equal(curvePoints(missing, 'native').length, 1)
   assert.ok(!missing.includes('class="chart-break"'))
 })
 
@@ -98,36 +101,36 @@ test('missing middle rates leave gaps and do not interrupt the native line', () 
 
 test('zero balances are plotted without inventing a daily percentage', () => {
   const html = render([snapshot('2026-09-17', { JPY: 0, CNY: 10000 }), snapshot('2026-09-18', { JPY: 100, CNY: 10000 })])
-  assert.equal(dots(html, 'native').length, 2)
+  assert.equal(curvePoints(html, 'native').length, 2)
   assert.ok(line(html, 'total')?.includes('L'))
   const native = panels(html)[1]
   assert.ok(native.includes('昨日余额为 0'))
   assert.ok(!native.match(/<p class="chart-change">(.*?)<\/p>/s)?.[1].includes('%'))
   assert.ok(native.includes('>+ 100</strong>'))
   const zero = render([snapshot('2026-09-18', { JPY: 0, CNY: 0 })])
-  assert.equal(dots(zero, 'total').length, 1)
-  assert.deepEqual(dots(zero, 'total'), dots(zero, 'native'))
+  assert.equal(curvePoints(zero, 'total').length, 1)
+  assert.deepEqual(curvePoints(zero, 'total'), curvePoints(zero, 'native'))
   assert.ok(!/NaN|Infinity/.test(zero))
 })
 
 test('negative balances, flat balances and single days retain true amount ordering', () => {
   const improved = render([snapshot('2026-09-17', { JPY: -100, CNY: 0 }), snapshot('2026-09-18', { JPY: -50, CNY: 0 })])
-  assert.ok(dots(improved, 'total')[0].y > dots(improved, 'total')[1].y)
+  assert.ok(curvePoints(improved, 'total')[0].y > curvePoints(improved, 'total')[1].y)
   assert.ok(improved.includes('+50.00%'))
   const declined = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 90, CNY: 0 })])
-  assert.ok(dots(declined, 'total')[0].y < dots(declined, 'total')[1].y)
+  assert.ok(curvePoints(declined, 'total')[0].y < curvePoints(declined, 'total')[1].y)
   assert.ok(declined.includes('-10.00%'))
   const flat = render([snapshot('2026-09-17', { JPY: 100, CNY: 0 }), snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
-  assert.equal(dots(flat, 'total')[0].y, dots(flat, 'total')[1].y)
+  assert.equal(curvePoints(flat, 'total')[0].y, curvePoints(flat, 'total')[1].y)
   assert.equal(line(flat, 'total'), line(flat, 'native'))
   assert.ok(!flat.includes('class="chart-break"'))
   assert.ok(flat.includes('0.00%'))
   const single = render([snapshot('2026-09-18', { JPY: 100, CNY: 0 })])
-  assert.equal(dots(single, 'total').length, 1)
+  assert.equal(curvePoints(single, 'total').length, 1)
   assert.ok(!/NaN|Infinity/.test(single))
   assert.equal(panels(render([])).length, 0)
   const debt = render([snapshot('2026-09-17', { JPY: 2000, CNY: -1000 }), snapshot('2026-09-18', { JPY: 2100, CNY: -1000 })])
-  assert.ok(dots(debt, 'total').every((point, index) => point.y > dots(debt, 'native')[index].y))
+  assert.ok(curvePoints(debt, 'total').every((point, index) => point.y > curvePoints(debt, 'native')[index].y))
 })
 
 test('broken amount axis omits only empty space and preserves the same money scale in both bands', () => {
@@ -157,8 +160,8 @@ test('overlapping, touching and nearby amount ranges use a continuous common axi
   }
   const crossing = render([snapshot('2026-09-17', { JPY: 100, CNY: 100 }), snapshot('2026-09-18', { JPY: 110, CNY: -100 })])
   assert.ok(!crossing.includes('class="chart-break"'))
-  assert.ok(dots(crossing, 'total')[0].y < dots(crossing, 'native')[0].y)
-  assert.ok(dots(crossing, 'total')[1].y > dots(crossing, 'native')[1].y)
+  assert.ok(curvePoints(crossing, 'total')[0].y < curvePoints(crossing, 'native')[0].y)
+  assert.ok(curvePoints(crossing, 'total')[1].y > curvePoints(crossing, 'native')[1].y)
 })
 
 test('empty, constant, negative and very large amount ranges produce finite distinct ticks', () => {
