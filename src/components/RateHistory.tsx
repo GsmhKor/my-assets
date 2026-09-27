@@ -65,7 +65,7 @@ export function RateHistory({ snapshots, today, fetchedAt, refreshing, disabled,
       {points.length === 1 && <p className="small muted">已有 1 天记录，积累后即可连成曲线。</p>}
     </> : <p className="empty-copy" role="status">{loading ? '正在获取历史汇率…' : '暂无可用汇率记录，联网刷新后重试。'}</p>}
     <div className="rate-history-meta">
-      {fetchedAt && <time dateTime={fetchedAt}>获取 {new Date(fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>}
+      {fetchedAt && <time dateTime={fetchedAt}>最新获取时间 {new Date(fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>}
       {latest && (fromSnapshots || failed) && <span>{fromSnapshots ? '本地快照' : '暂用缓存'}</span>}
     </div>
   </section>

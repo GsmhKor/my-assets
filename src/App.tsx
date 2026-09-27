@@ -204,10 +204,15 @@ export default function App() {
   }
   return <div className="app-shell">
     <main className="page">
-      <header className="app-header"><div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192-v1.8.0.png`} alt="" /><div className="brand-title"><strong>资金账本</strong><small className="brand-version">{__APP_VERSION__}</small></div></div><button type="button" className="local-badge" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} title="查看更新" onClick={() => void checkAppUpdate()}>{checkingUpdate ? '检查中…' : '查看更新'}</button></header>
+      <header className="app-header">
+        <div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192-v1.8.0.png`} alt="" /><div className="brand-title"><strong>资金账本</strong><small className="brand-version">{__APP_VERSION__}</small></div></div>
+        <div className="header-actions">
+          {tab !== 'settings' && <button type="button" className="local-badge currency-toggle" aria-label={`当前币种：${currencyName(currency)}，点击切换为${currencyName(currency === 'JPY' ? 'CNY' : 'JPY')}`} title="切换登记与统计币种" onClick={() => setCurrency(value => value === 'JPY' ? 'CNY' : 'JPY')}>{currencyName(currency)}</button>}
+          <button type="button" className="local-badge" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} title="查看更新" onClick={() => void checkAppUpdate()}>{checkingUpdate ? '检查中…' : '查看更新'}</button>
+        </div>
+      </header>
       {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
-        {(tab === 'home' || tab === 'history') && <div className="currency-switch" role="group" aria-label="登记与统计币种">{(['JPY', 'CNY'] as const).map(value => <button key={value} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}><span>{currencyName(value)}</span><small>{value}</small></button>)}</div>}
         {tab === 'home' && <>
           <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today} /><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
           <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />
