@@ -210,10 +210,9 @@ export default function App() {
         {(tab === 'home' || tab === 'history') && <div className="currency-switch" role="group" aria-label="登记与统计币种">{(['JPY', 'CNY'] as const).map(value => <button key={value} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}><span>{currencyName(value)}</span><small>{value}</small></button>)}</div>}
         {tab === 'home' && <>
           <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today} /><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
-          <div className="rate-panel"><div><strong>{rate ? <>1 人民币 = {rate.cnyToJpy.toFixed(4)} 日元<br />10000 日元 = {(10000 / rate.cnyToJpy).toFixed(2)} 人民币</> : '正在等待可用汇率'}</strong><small>{rate ? `${rate.source} · 报价 ${rate.date} · 获取 ${new Date(rate.fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '没有汇率时，仍可保存原币余额。'}</small></div><button className="text-button" disabled={rateBusy || busy} onClick={() => void refreshRate(true)}>{rateBusy ? '更新中…' : '刷新'}</button></div>
+          <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />
           {rateError && <p className="notice small" role="status">{rateError}</p>}
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请刷新或在设置中填写汇率。</p>}
-          <RateHistory snapshots={ledger.snapshots} today={today} refreshKey={rate?.fetchedAt} />
         </>}
         {tab === 'assets' && <>
           <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>

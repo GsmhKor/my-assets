@@ -5,9 +5,10 @@ import { parseRateResponse } from './rates.ts'
 export interface RatePoint { day: string; cny: number }
 interface HistoryCache { fetchedAt: string; through: string; points: RatePoint[] }
 const CACHE_KEY = 'my-assets-rate-history'
+const HISTORY_DAYS = 90
 
 export function recentRatePoints(points: readonly RatePoint[], today: string): RatePoint[] {
-  const start = shiftDay(today, -99)
+  const start = shiftDay(today, 1 - HISTORY_DAYS)
   const days = new Map<string, RatePoint>()
   for (const point of points) {
     if (point && validDay(point.day) && point.day >= start && point.day <= today && Number.isFinite(point.cny) && point.cny >= 10 && point.cny <= 1_000_000) days.set(point.day, point)
@@ -48,7 +49,7 @@ export async function fetchRateHistory(signal: AbortSignal, now = new Date()): P
   const age = cached ? now.getTime() - Date.parse(cached.fetchedAt) : Infinity
   const points = recentRatePoints(cached?.points ?? [], today)
   if (cached?.through === today && age >= 0 && age < 15 * 60_000 && points.length) return points
-  const response = await fetch(`https://api.frankfurter.dev/v2/rates?base=CNY&quotes=JPY&from=${shiftDay(today, -99)}&to=${today}`, {
+  const response = await fetch(`https://api.frankfurter.dev/v2/rates?base=CNY&quotes=JPY&from=${shiftDay(today, 1 - HISTORY_DAYS)}&to=${today}`, {
     signal, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
   })
   if (!response.ok) throw new Error(`历史汇率请求失败（HTTP ${response.status}）。`)

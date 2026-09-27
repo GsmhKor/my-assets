@@ -6,9 +6,9 @@ import { cachedRateHistory, fetchRateHistory, parseRateHistory, recentRatePoints
 const now = new Date('2026-09-27T12:00:00')
 const quote = (date: string, rate = 20) => ({ date, rate, base: 'CNY', quote: 'JPY' })
 
-test('converts 10000 yen to yuan without rounding and keeps the inclusive 100-day range', () => {
-  const points = parseRateHistory([quote('2026-09-26', 21), quote('2026-06-19'), quote('2026-06-20'), quote('2026-09-27')], now)
-  assert.deepEqual(points, [{ day: '2026-06-20', cny: 500 }, { day: '2026-09-26', cny: 10000 / 21 }, { day: '2026-09-27', cny: 500 }])
+test('converts 10000 yen to yuan without rounding and keeps the inclusive 90-day range', () => {
+  const points = parseRateHistory([quote('2026-09-26', 21), quote('2026-06-29'), quote('2026-06-30'), quote('2026-09-27')], now)
+  assert.deepEqual(points, [{ day: '2026-06-30', cny: 500 }, { day: '2026-09-26', cny: 10000 / 21 }, { day: '2026-09-27', cny: 500 }])
   // Non-quote dates are not invented or filled with zero.
   assert.equal(points.length, 3)
 })
@@ -34,7 +34,7 @@ test('snapshot fallback uses saved rates and snapshot dates, omits missing rates
 test('fetch caches quotes, reuses fresh cache and preserves it on network failure', async t => {
   const memory = new Map<string, string>()
   t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
-    assert.equal(String(url), 'https://api.frankfurter.dev/v2/rates?base=CNY&quotes=JPY&from=2026-06-20&to=2026-09-27')
+    assert.equal(String(url), 'https://api.frankfurter.dev/v2/rates?base=CNY&quotes=JPY&from=2026-06-30&to=2026-09-27')
     return new Response(JSON.stringify([quote('2026-09-25')]))
   })
   const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
