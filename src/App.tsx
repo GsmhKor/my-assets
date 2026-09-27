@@ -3,11 +3,12 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
 import { TotalBalance } from './components/TotalBalance'
+import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
 import { EMPTY_LEDGER, convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
-import { sortAssetsByAmount } from './domain/assetSort'
+import { assetSortPreference, sortAssetsByAmount } from './domain/assetSort'
 import type { AssetSortOrder } from './domain/assetSort'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchRate } from './services/rates'
@@ -52,7 +53,7 @@ export default function App() {
   const mutationPending = useRef(false)
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
-  const [assetSort, setAssetSort] = useState<AssetSortOrder>(() => preference('asset-sort', 'desc') === 'asc' ? 'asc' : 'desc')
+  const [assetSort, setAssetSort] = useState<AssetSortOrder>(() => assetSortPreference(preference('asset-sort', 'default')))
   const [manualRate, setManualRate] = useState('')
   const importInput = useRef<HTMLInputElement>(null)
   const channel = useRef<BroadcastChannel | null>(null)
@@ -180,7 +181,7 @@ export default function App() {
   const totals = sumAssets(ledger?.assets ?? [])
   const total = convertedTotal(totals, currency, rate)
   const visibleAssets = sortAssetsByAmount((ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())), assetSort, rate)
-  const needsSortRate = !validRate(rate) && new Set(visibleAssets.map(asset => asset.currency)).size > 1
+  const needsSortRate = assetSort !== 'default' && !validRate(rate) && new Set(visibleAssets.map(asset => asset.currency)).size > 1
   function assetRows(rows: Asset[]) {
     return rows.map(asset => {
       const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
@@ -212,10 +213,11 @@ export default function App() {
           <div className="rate-panel"><div><strong>{rate ? <>1 人民币 = {rate.cnyToJpy.toFixed(4)} 日元<br />10000 日元 = {(10000 / rate.cnyToJpy).toFixed(2)} 人民币</> : '正在等待可用汇率'}</strong><small>{rate ? `${rate.source} · 报价 ${rate.date} · 获取 ${new Date(rate.fetchedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '没有汇率时，仍可保存原币余额。'}</small></div><button className="text-button" disabled={rateBusy || busy} onClick={() => void refreshRate(true)}>{rateBusy ? '更新中…' : '刷新'}</button></div>
           {rateError && <p className="notice small" role="status">{rateError}</p>}
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请刷新或在设置中填写汇率。</p>}
+          <RateHistory snapshots={ledger.snapshots} today={today} refreshKey={rate?.fetchedAt} />
         </>}
         {tab === 'assets' && <>
           <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>
-          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><label className="asset-sort"><span>金额</span><select aria-label="资产金额排序" value={assetSort} onChange={event => { const value = event.target.value === 'asc' ? 'asc' : 'desc'; setAssetSort(value); remember('asset-sort', value) }}><option value="desc">降序</option><option value="asc">升序</option></select></label></div>
+          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><label className="asset-sort"><span>排序</span><select aria-label="资产排序" value={assetSort} onChange={event => { const value = assetSortPreference(event.target.value); setAssetSort(value); remember('asset-sort', value) }}><option value="default">默认</option><option value="desc">降序</option><option value="asc">升序</option></select></label></div>
           {needsSortRate && <p className="small muted asset-sort-note">缺少汇率，暂按币种分别排序。</p>}
           <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
         </>}

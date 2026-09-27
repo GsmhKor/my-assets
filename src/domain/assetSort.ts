@@ -1,9 +1,14 @@
 import type { Asset, Rate } from './ledger.ts'
 import { validRate } from './ledger.ts'
 
-export type AssetSortOrder = 'desc' | 'asc'
+export type AssetSortOrder = 'default' | 'desc' | 'asc'
+
+export function assetSortPreference(value: string): AssetSortOrder {
+  return value === 'asc' || value === 'desc' ? value : 'default'
+}
 
 export function sortAssetsByAmount(assets: readonly Asset[], order: AssetSortOrder, rate: Rate | null): Asset[] {
+  if (order === 'default') return [...assets].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
   const exchange = validRate(rate) ? rate.cnyToJpy : null
   const direction = order === 'desc' ? -1 : 1
   // Compare unrounded yen values so small differences are not lost in conversion.

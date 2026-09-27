@@ -1,11 +1,26 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { Asset, Currency, Rate } from '../src/domain/ledger.ts'
-import { sortAssetsByAmount } from '../src/domain/assetSort.ts'
+import { assetSortPreference, sortAssetsByAmount } from '../src/domain/assetSort.ts'
 
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-26', fetchedAt: '2026-09-26T00:00:00Z', source: 'Frankfurter' }
 const asset = (id: string, currency: Currency, amountMinor: number): Asset => ({ id, source: id, currency, amountMinor, updatedDay: '2026-09-26', updatedAt: '2026-09-26T00:00:00Z' })
 const ids = (assets: Asset[]) => assets.map(asset => asset.id)
+
+test('default sorts by update instant, newest first, independent of balance or rate', () => {
+  const assets = [
+    { ...asset('old', 'JPY', 99999), updatedAt: '2026-09-25T23:00:00Z' },
+    { ...asset('new', 'CNY', -1000), updatedAt: '2026-09-26T09:00:00+09:00' },
+    { ...asset('middle', 'JPY', 0), updatedAt: '2026-09-25T23:30:00Z' },
+  ]
+  const original = structuredClone(assets)
+  for (const exchange of [null, rate]) assert.deepEqual(ids(sortAssetsByAmount(assets, 'default', exchange)), ['new', 'middle', 'old'])
+  assert.deepEqual(assets, original)
+  assert.equal(assetSortPreference('default'), 'default')
+  assert.equal(assetSortPreference('invalid'), 'default')
+  assert.equal(assetSortPreference('asc'), 'asc')
+  assert.equal(assetSortPreference('desc'), 'desc')
+})
 
 test('sorts mixed currencies by converted value, from positive through zero to negative or in reverse', () => {
   const assets = [asset('jpy-debt', 'JPY', -1000), asset('jpy', 'JPY', 1000), asset('cny', 'CNY', 10000), asset('zero', 'CNY', 0), asset('cny-debt', 'CNY', -10000)]
