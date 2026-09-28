@@ -221,9 +221,13 @@ export default function App() {
         {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} busy={busy} />}
         {tab === 'settings' && <>
           <div className="section-heading"><h1>设置</h1></div>
-          <button type="button" className="card settings-update" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} onClick={() => void checkAppUpdate()}><img src={settingsPrivacyCat} alt="" /><span>{checkingUpdate ? '检查中…' : '查看更新'}</span><Icon name="chevron-right" size={18} /></button>
-          <h2 className="settings-heading">数据与备份</h2><section className="card settings-list"><button onClick={() => downloadBackup(ledger)} disabled={busy}><Icon name="download" /><span>导出</span></button><button disabled={busy} onClick={() => importInput.current?.click()}><Icon name="upload" /><span>导入</span></button><input ref={importInput} type="file" hidden accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void restore(file) }} /></section>
-          <h2 className="settings-heading">外观</h2><section className="card settings-list"><label className="setting-row"><Icon name="moon" /><span>深色模式</span><input type="checkbox" role="switch" checked={dark} onChange={event => setDark(event.target.checked)} /></label></section>
+          <div className="settings-grid">
+            <button type="button" className="card settings-action settings-update" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} onClick={() => void checkAppUpdate()}><img src={settingsPrivacyCat} alt="" /><span>{checkingUpdate ? '检查中…' : '查看更新'}</span></button>
+            <button type="button" className="card settings-action" aria-label={`当前为${dark ? '深色' : '浅色'}模式，点击切换为${dark ? '浅色' : '深色'}模式`} title={`切换为${dark ? '浅色' : '深色'}模式`} onClick={() => setDark(value => !value)}><Icon name={dark ? 'moon' : 'sun'} size={20} /><span>{dark ? '深色模式' : '浅色模式'}</span></button>
+            <button type="button" className="card settings-action" onClick={() => downloadBackup(ledger)} disabled={busy}><Icon name="download" size={20} /><span>导出</span></button>
+            <button type="button" className="card settings-action" disabled={busy} onClick={() => importInput.current?.click()}><Icon name="upload" size={20} /><span>导入</span></button>
+          </div>
+          <input ref={importInput} type="file" hidden accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void restore(file) }} />
         </>}
       </>}
     </main>

@@ -1,5 +1,5 @@
 interface IconProps {
-  name: 'home' | 'list' | 'chart' | 'settings' | 'plus' | 'search' | 'chevron-left' | 'chevron-right' | 'close' | 'download' | 'upload' | 'trash' | 'moon' | 'info' | 'edit'
+  name: 'home' | 'list' | 'chart' | 'settings' | 'plus' | 'search' | 'chevron-left' | 'chevron-right' | 'close' | 'download' | 'upload' | 'trash' | 'moon' | 'sun' | 'info' | 'edit'
   size?: number
 }
 
@@ -17,6 +17,7 @@ const paths: Record<IconProps['name'], React.ReactNode> = {
   upload: <><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M5 21h14"/></>,
   trash: <><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/></>,
   moon: <path d="M20.5 15.4A9 9 0 0 1 8.6 3.5 9 9 0 1 0 20.5 15.4Z"/>,
+  sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></>,
   info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></>,
   edit: <><path d="m4 20 4.2-1 10.6-10.6-3.2-3.2L5 15.8 4 20Z"/><path d="m13.8 7 3.2 3.2"/></>,
 }
