@@ -6,7 +6,7 @@ import { TotalBalance } from './components/TotalBalance'
 import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
-import { EMPTY_LEDGER, convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
+import { convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { assetSortPreference, sortAssetsByAmount } from './domain/assetSort'
 import type { AssetSortOrder } from './domain/assetSort'
@@ -54,7 +54,6 @@ export default function App() {
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [assetSort, setAssetSort] = useState<AssetSortOrder>(() => assetSortPreference(preference('asset-sort', 'default')))
-  const [manualRate, setManualRate] = useState('')
   const importInput = useRef<HTMLInputElement>(null)
   const channel = useRef<BroadcastChannel | null>(null)
   const { needRefresh: [needRefresh, setNeedRefresh] } = useRegisterSW({
@@ -126,7 +125,7 @@ export default function App() {
     try {
       let next: Rate
       try { next = await fetchRate() }
-      catch (error) { setRateError(`汇率更新失败：${errorText(error)} 有缓存时继续使用上次汇率，也可在设置中手动填写。`); return }
+      catch (error) { setRateError(`汇率更新失败：${errorText(error)} 有缓存时继续使用上次汇率，请稍后刷新。`); return }
       if (syncToday && ledgerRef.current?.snapshots.length) {
         try { await mutate(value => recordSnapshot(value, value.assets, next)) }
         catch (error) { setRateError(`刷新未完成，今日历史未更新：${errorText(error)}`); return }
@@ -173,11 +172,6 @@ export default function App() {
       await mutate(() => restored, revision); setMessage('备份已恢复。')
     } catch (error) { setMessage(errorText(error)) }
   }
-  async function clear() {
-    if (!window.confirm('清空资金账本的全部资产和历史快照？请先导出备份。')) return
-    if (!window.confirm('再次确认：这会永久删除当前资金账本的数据。')) return
-    try { await mutate(() => structuredClone(EMPTY_LEDGER)); setMessage('资金账本数据已清空。') } catch (error) { setMessage(errorText(error)) }
-  }
   const totals = sumAssets(ledger?.assets ?? [])
   const total = convertedTotal(totals, currency, rate)
   const visibleAssets = sortAssetsByAmount((ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())), assetSort, rate)
@@ -208,7 +202,6 @@ export default function App() {
         <div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192-v1.8.0.png`} alt="" /><div className="brand-title"><strong>资金账本</strong><small className="brand-version">{__APP_VERSION__}</small></div></div>
         <div className="header-actions">
           {tab !== 'settings' && <button type="button" className="local-badge currency-toggle" aria-label={`当前币种：${currencyName(currency)}，点击切换为${currencyName(currency === 'JPY' ? 'CNY' : 'JPY')}`} title="切换登记与统计币种" onClick={() => setCurrency(value => value === 'JPY' ? 'CNY' : 'JPY')}>{currencyName(currency)}</button>}
-          <button type="button" className="local-badge" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} title="查看更新" onClick={() => void checkAppUpdate()}>{checkingUpdate ? '检查中…' : '查看更新'}</button>
         </div>
       </header>
       {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
@@ -217,7 +210,7 @@ export default function App() {
           <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today} /><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
           <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />
           {rateError && <p className="notice small" role="status">{rateError}</p>}
-          {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请刷新或在设置中填写汇率。</p>}
+          {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请联网后刷新。</p>}
         </>}
         {tab === 'assets' && <>
           <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>
@@ -228,11 +221,9 @@ export default function App() {
         {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} busy={busy} />}
         {tab === 'settings' && <>
           <div className="section-heading"><h1>设置</h1></div>
-          <section className="card privacy"><img src={settingsPrivacyCat} alt="" /><div><h2>资产只保存在这里</h2><p>金额和来源留在本设备。联网仅查询汇率，请定期备份。</p></div></section>
-          <h2 className="settings-heading">数据与备份</h2><section className="card settings-list"><button onClick={() => downloadBackup(ledger)} disabled={busy}><Icon name="download" /><span>导出完整 JSON 备份<small>包括资产、每日快照和历史汇率</small></span></button><button disabled={busy} onClick={() => importInput.current?.click()}><Icon name="upload" /><span>从备份恢复<small>覆盖当前资金账本的数据</small></span></button><input ref={importInput} type="file" hidden accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void restore(file) }} /></section>
+          <button type="button" className="card settings-update" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} onClick={() => void checkAppUpdate()}><img src={settingsPrivacyCat} alt="" /><span>{checkingUpdate ? '检查中…' : '查看更新'}</span><Icon name="chevron-right" size={18} /></button>
+          <h2 className="settings-heading">数据与备份</h2><section className="card settings-list"><button onClick={() => downloadBackup(ledger)} disabled={busy}><Icon name="download" /><span>导出</span></button><button disabled={busy} onClick={() => importInput.current?.click()}><Icon name="upload" /><span>导入</span></button><input ref={importInput} type="file" hidden accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void restore(file) }} /></section>
           <h2 className="settings-heading">外观</h2><section className="card settings-list"><label className="setting-row"><Icon name="moon" /><span>深色模式</span><input type="checkbox" role="switch" checked={dark} onChange={event => setDark(event.target.checked)} /></label></section>
-          <h2 className="settings-heading">汇率</h2><section className="card rate-settings"><p>自动获取 Frankfurter 最新参考价；断网时使用上次汇率。历史快照始终保留保存时的汇率。</p><form onSubmit={event => { event.preventDefault(); const next: Rate = { cnyToJpy: Number(manualRate), date: localDay(), fetchedAt: new Date().toISOString(), source: '手动' }; if (!validRate(next)) { setMessage('请输入 0.01～1000 之间的有效汇率。'); return } setRate(next); cacheRate(next); setRateError(''); setMessage('手动汇率已应用。下次自动更新成功时使用联网报价。') }}><label className="field">手动填写：1 人民币等于多少日元<input inputMode="decimal" placeholder="例如 20.00" value={manualRate} onChange={event => setManualRate(event.target.value)} /></label><button className="secondary-button" disabled={rateBusy}>使用此汇率</button></form><a href="https://frankfurter.dev/" target="_blank" rel="noreferrer">查看汇率来源</a></section>
-          <h2 className="settings-heading">数据管理</h2><section className="card settings-list"><button className="negative" disabled={busy || !ledger.snapshots.length} onClick={() => void clear()}><Icon name="trash" /><span>清空全部资产及历史<small>此操作需要两次确认</small></span></button></section>
         </>}
       </>}
     </main>
