@@ -64,12 +64,12 @@ test('both currencies use actual amounts, with daily changes above a single char
 test('native share uses the latest total converted into the selected currency', () => {
   const snapshots = [snapshot('2026-09-17', { JPY: 500, CNY: 2500 }), snapshot('2026-09-18', { JPY: 200, CNY: 4000 })]
   const heading = (html: string) => panels(html)[1].match(/<h3>(.*?)<\/h3>/s)?.[1].replace(/<[^>]+>/g, '')
-  assert.equal(heading(render(snapshots, 'JPY')), '实际日元资产(20%)')
-  assert.equal(heading(render(snapshots, 'CNY')), '实际人民币资产(80%)')
-  assert.equal(heading(render([snapshot('2026-09-18', { JPY: 100, CNY: 1000 })])), '实际日元资产(33.33%)')
-  assert.equal(heading(render([snapshot('2026-09-18', { JPY: 0, CNY: 1000 })])), '实际日元资产(0%)')
+  assert.equal(heading(render(snapshots, 'JPY')), '实际资产(20%)')
+  assert.equal(heading(render(snapshots, 'CNY')), '实际资产(80%)')
+  assert.equal(heading(render([snapshot('2026-09-18', { JPY: 100, CNY: 1000 })])), '实际资产(33.33%)')
+  assert.equal(heading(render([snapshot('2026-09-18', { JPY: 0, CNY: 1000 })])), '实际资产(0%)')
   for (const saved of [snapshot('2026-09-18', { JPY: 200, CNY: -1000 }), snapshot('2026-09-18', { JPY: 200, CNY: 1000 }, null)]) {
-    assert.equal(heading(render([saved])), '实际日元资产(—)')
+    assert.equal(heading(render([saved])), '实际资产(—)')
   }
 })
 

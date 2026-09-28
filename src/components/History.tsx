@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Asset, Currency, Ledger } from '../domain/ledger'
-import { convertedTotal, currencyName, historyBetween, money } from '../domain/ledger'
+import { convertedTotal, historyBetween, money } from '../domain/ledger'
 import { HistoryList } from './HistoryList'
 import { formatMoneyChange, moneyChangeClass } from './balanceChange'
 import { historyScale } from './historyScale'
@@ -12,7 +12,7 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
   const points = useMemo(() => historyBetween(ledger.snapshots, from, today), [ledger.snapshots, from, today])
   const amounts = points.map(point => convertedTotal(point.snapshot.totals, currency, point.snapshot.rate))
   const nativeAmounts = points.map(point => point.snapshot.totals[currency])
-  const nativeLabel = `实际${currencyName(currency)}资产`
+  const nativeLabel = '实际资产'
   const latestTotal = amounts.at(-1)
   const latestNative = nativeAmounts.at(-1)
   const nativeShare = latestTotal != null && latestTotal !== 0 && latestNative != null
