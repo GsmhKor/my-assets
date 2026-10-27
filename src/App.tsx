@@ -6,7 +6,7 @@ import { TotalBalance } from './components/TotalBalance'
 import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
-import { convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, saveAsset, shiftDay, sumAssets, validRate } from './domain/ledger'
+import { convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { assetSortPreference, sortAssetsByAmount } from './domain/assetSort'
 import type { AssetSortOrder } from './domain/assetSort'
@@ -40,7 +40,7 @@ export default function App() {
   const ratePending = useRef(false)
   const [rateError, setRateError] = useState('')
   const [today, setToday] = useState(localDay)
-  const [editor, setEditor] = useState<{ asset?: Asset; revision: number; history?: { day: string; through: string; affectsCurrent: boolean } } | null>(null)
+  const [editor, setEditor] = useState<{ asset?: Asset; revision: number; history?: { day: string; affectsCurrent: boolean } } | null>(null)
   const [saving, setBusy] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
@@ -149,7 +149,7 @@ export default function App() {
   function correctHistorical(day: string, asset: Asset) {
     if (!ledger || busy) return
     const next = ledger.snapshots.find(snapshot => snapshot.day > day)
-    setEditor({ asset, revision: ledger.revision, history: { day, through: next ? shiftDay(next.day, -1) : localDay(), affectsCurrent: !next } })
+    setEditor({ asset, revision: ledger.revision, history: { day, affectsCurrent: !next } })
   }
   async function save(draft: Draft) {
     if (editor?.history && editor.asset) {
@@ -163,6 +163,15 @@ export default function App() {
     }
   }
   async function remove(id: string) { await mutate(value => removeAsset(value, id, rate), editor?.revision); setMessage('已从当前资产移除，之前的快照仍保留。') }
+  async function resetHistorical() {
+    if (!ledger || busy || !ledger.snapshots.length) return
+    if (!window.confirm('重置后将删除此前所有历史快照，以今天的当前资产余额作为图表新起点。当前资产不会删除。确定重置吗？')) return
+    try {
+      const currentRate = rate && validRate(rate) && rate.date <= localDay() ? rate : null
+      await mutate(value => resetHistory(value, currentRate), ledger.revision)
+      setMessage('历史已重置，图表从今天重新开始。')
+    } catch (error) { setMessage(errorText(error)) }
+  }
   async function restore(file: File) {
     const revision = ledgerRef.current?.revision
     try {
@@ -218,7 +227,7 @@ export default function App() {
           {needsSortRate && <p className="small muted asset-sort-note">缺少汇率，暂按币种分别排序。</p>}
           <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
         </>}
-        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} busy={busy} />}
+        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} onReset={() => void resetHistorical()} busy={busy} />}
         {tab === 'settings' && <>
           <div className="section-heading"><h1>设置</h1></div>
           <div className="settings-grid">

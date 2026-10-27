@@ -105,6 +105,10 @@ export function recordSnapshot(ledger: Ledger, assets: Asset[], rate: Rate | nul
   const snapshot: Snapshot = { day, savedAt: now.toISOString(), assets: structuredClone(assets), totals, rate: rate ? { ...rate } : null }
   return { revision: ledger.revision + 1, assets, snapshots: [...ledger.snapshots.filter(item => item.day !== day), snapshot] }
 }
+export function resetHistory(ledger: Ledger, rate: Rate | null, now = new Date()): Ledger {
+  // Keep current balances and replace every old snapshot with today's baseline.
+  return recordSnapshot({ ...ledger, snapshots: [] }, ledger.assets, rate, now)
+}
 export function saveAsset(ledger: Ledger, draft: Draft, rate: Rate | null, now = new Date(), newId: string = crypto.randomUUID()): Ledger {
   const source = draft.source.trim()
   if (!source || source.length > 60 || /[\u0000-\u001f]/.test(source)) throw new Error('请输入 1～60 字的资产来源。')
@@ -119,7 +123,7 @@ export function removeAsset(ledger: Ledger, id: string, rate: Rate | null, now =
   if (!ledger.assets.some(asset => asset.id === id)) throw new Error('这条资产已不存在。')
   return recordSnapshot(ledger, ledger.assets.filter(asset => asset.id !== id), rate, now)
 }
-export interface HistoryPoint { day: string; snapshot: Snapshot; carried: boolean }
+export interface HistoryPoint { day: string; snapshot: Snapshot }
 export function correctSnapshotAmount(ledger: Ledger, day: string, assetId: string, amount: string, now = new Date()): Ledger {
   if (!validDay(day) || day > localDay(now)) throw new Error('请选择今天或之前的快照日期。')
   const snapshot = ledger.snapshots.find(item => item.day === day)
@@ -140,20 +144,17 @@ export function correctSnapshotAmount(ledger: Ledger, day: string, assetId: stri
 }
 export function historyBetween(snapshots: Snapshot[], from: string, to: string): HistoryPoint[] {
   if (!validDay(from) || !validDay(to) || from > to) return []
-  const ordered = [...snapshots].sort((a, b) => a.day.localeCompare(b.day))
-  const points: HistoryPoint[] = []
-  let index = 0
-  let current: Snapshot | undefined
-  for (let day = from; day <= to; day = shiftDay(day, 1)) {
-    while (index < ordered.length && ordered[index].day <= day) current = ordered[index++]
-    if (current) points.push({ day, snapshot: current, carried: current.day !== day })
-  }
-  return points
+  // Missing dates are not records and must not be recreated after backup restore.
+  return snapshots.filter(snapshot => snapshot.day >= from && snapshot.day <= to)
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .map(snapshot => ({ day: snapshot.day, snapshot }))
 }
 
 export function totalChangeAmount(current: number | null, snapshots: Snapshot[], currency: Currency, today: string): number | null {
   const yesterday = shiftDay(today, -1)
-  const previous = historyBetween(snapshots, yesterday, yesterday)[0]?.snapshot
+  // The home balance still compares against the last balance known yesterday.
+  const previous = snapshots.filter(snapshot => snapshot.day <= yesterday)
+    .sort((a, b) => a.day.localeCompare(b.day)).at(-1)
   if (current === null || !previous) return null
   const previousTotal = convertedTotal(previous.totals, currency, previous.rate)
   return previousTotal === null ? null : current - previousTotal

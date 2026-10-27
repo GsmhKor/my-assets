@@ -7,7 +7,7 @@ import { historyScale } from './historyScale'
 
 const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}%`
 
-export function History({ ledger, currency, today, onCorrect, busy = false }: { ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; busy?: boolean }) {
+export function History({ ledger, currency, today, onCorrect, onReset, busy = false }: { ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; onReset: () => void; busy?: boolean }) {
   const from = ledger.snapshots[0]?.day ?? today
   const points = useMemo(() => historyBetween(ledger.snapshots, from, today), [ledger.snapshots, from, today])
   const amounts = points.map(point => convertedTotal(point.snapshot.totals, currency, point.snapshot.rate))
@@ -23,12 +23,11 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
     { id: 'native', label: nativeLabel, amounts: nativeAmounts },
   ].map(item => {
     const last = item.amounts.at(-1)
-    // historyBetween fills every calendar day, including carried snapshots.
-    const yesterday = item.amounts.at(-2)
-    const dailyChange = yesterday != null && last != null ? last - yesterday : null
-    const dailyPercent = dailyChange !== null && yesterday != null && yesterday !== 0 ? dailyChange / Math.abs(yesterday) * 100 : null
+    const previous = item.amounts.at(-2)
+    const dailyChange = previous != null && last != null ? last - previous : null
+    const dailyPercent = dailyChange !== null && previous != null && previous !== 0 ? dailyChange / Math.abs(previous) * 100 : null
     const valid = item.amounts.filter((amount): amount is number => amount !== null)
-    return { ...item, last, yesterday, dailyChange, dailyPercent,
+    return { ...item, last, previous, dailyChange, dailyPercent,
       min: valid.length ? Math.min(...valid) : null, max: valid.length ? Math.max(...valid) : null }
   })
   const unit = currency === 'JPY' ? 1 : 100
@@ -59,7 +58,7 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
       }
       const slopes = segment.slice(1).map((point, index) =>
         (point.y - segment[index].y) / (point.x - segment[index].x))
-      // Monotone cubic interpolation on equally spaced days avoids artificial peaks.
+      // Saved records are equally spaced; missing calendar days take no space.
       const tangents = segment.map((_, index) => {
         if (index === 0) return slopes[0]
         if (index === segment.length - 1) return slopes[index - 1]
@@ -75,13 +74,13 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
     }).join(' ')
   }
   return <>
-    <div className="section-heading"><h1>资产日历</h1>{points.length > 0 && <span className="small muted">共 {points.length} 天</span>}</div>
+    <div className="section-heading"><h1>资产日历</h1><button type="button" className="text-button history-reset" onClick={onReset} disabled={busy || points.length === 0}>重置</button></div>
     <section className="card history-chart"><h2>每日资产变化 · {currency}</h2>
       {points.length ? <>
         <div className="history-summaries">
         {series.map(item => <section className="history-series" aria-label={item.label} key={item.id}>
             <div className="history-series-heading"><h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" /><span>{item.label}{item.id === 'native' && <span title="占当日同币种折算总资产的比例">({nativeShare})</span>}</span></h3><strong className="money">{money(item.last ?? null, currency, 0)}</strong></div>
-            <p className="chart-change"><span>较昨日变化</span><span className="chart-change-values"><strong className={`money${moneyChangeClass(item.dailyChange)}`}>{item.yesterday === undefined ? '暂无昨日记录' : formatMoneyChange(item.dailyChange, currency, { showCurrency: false })}</strong>{item.dailyPercent !== null && <span className={`money${moneyChangeClass(item.dailyChange)}`}>（{percent(item.dailyPercent)}）</span>}{item.yesterday === 0 && item.dailyChange !== null && <span title="昨日余额为 0，无法计算变化百分比">（昨日余额为 0）</span>}</span></p>
+            <p className="chart-change"><span>较上次记录</span><span className="chart-change-values"><strong className={`money${moneyChangeClass(item.dailyChange)}`}>{item.previous === undefined ? '暂无可比记录' : formatMoneyChange(item.dailyChange, currency, { showCurrency: false })}</strong>{item.dailyPercent !== null && <span className={`money${moneyChangeClass(item.dailyChange)}`}>（{percent(item.dailyPercent)}）</span>}{item.previous === 0 && item.dailyChange !== null && <span title="上次余额为 0，无法计算变化百分比">（上次余额为 0）</span>}</span></p>
             <div className="chart-labels"><span>最高 {money(item.max, currency, 0)}</span><span>最低 {money(item.min, currency, 0)}</span></div>
           </section>
         )}
@@ -100,7 +99,6 @@ export function History({ ledger, currency, today, onCorrect, busy = false }: { 
             <path d={path(item.amounts)} className={`chart-line chart-line-${item.id}`} />
           </g>)}
         </svg>
-        <div className="chart-labels history-dates"><span>{points[0].day}</span><span>{points.at(-1)?.day}</span></div>
         {amounts.some(amount => amount === null) && <p className="small muted chart-note">缺少汇率的日期不绘制折算总资产数据，实际余额不受影响。</p>}
       </> : <p className="empty-copy">还没有资产记录。首次保存后会从记录当天开始展示历史。</p>}
     </section>

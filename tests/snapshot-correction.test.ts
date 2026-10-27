@@ -27,7 +27,7 @@ test('correcting an older snapshot changes only its selected amount and recomput
   assert.equal(changed.snapshots[0].savedAt, now.toISOString())
   assert.deepEqual(changed.snapshots[1], original.snapshots[1])
   assert.deepEqual(changed.assets, original.assets)
-  assert.deepEqual(historyBetween(changed.snapshots, '2026-09-15', '2026-09-18').map(point => point.snapshot.totals.CNY), [20000, 20000, 20000, 30000])
+  assert.deepEqual(historyBetween(changed.snapshots, '2026-09-15', '2026-09-18').map(point => point.snapshot.totals.CNY), [20000, 30000])
   assert.deepEqual(parseBackup(exportBackup(changed), '2026-09-18').snapshots, changed.snapshots)
 })
 

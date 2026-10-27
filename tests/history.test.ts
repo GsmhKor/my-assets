@@ -10,7 +10,7 @@ import { money } from '../src/domain/ledger.ts'
 import { historyScale } from '../src/components/historyScale.ts'
 
 let server: ViteDevServer
-let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; busy?: boolean }>
+let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; onReset: () => void; busy?: boolean }>
 let AssetEditor: typeof import('../src/components/AssetEditor.tsx').AssetEditor
 let HistoryDay: typeof import('../src/components/HistoryList.tsx').HistoryDay
 before(async () => {
@@ -24,7 +24,7 @@ after(async () => { await server?.close() })
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-16', fetchedAt: '2026-09-16T00:00:00Z', source: 'Frankfurter' }
 const snapshot = (day: string, totals: Totals, savedRate: Rate | null = rate): Snapshot => ({ day, savedAt: day + 'T00:00:00Z', assets: [], totals, rate: savedRate })
 const render = (snapshots: Snapshot[], currency: Currency = 'JPY') => renderToStaticMarkup(createElement(History, {
-  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', onCorrect: () => {},
+  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', onCorrect: () => {}, onReset: () => {},
 }))
 const panels = (html: string) => [...html.matchAll(/<section class="history-series"[^>]*>(.*?)<\/section>/gs)].map(match => match[1])
 const line = (html: string, id: string) => html.match(new RegExp('d="([^"]*)" class="chart-line chart-line-' + id + '"'))?.[1]
@@ -33,6 +33,34 @@ const curvePoints = (html: string, id: string) => [...(line(html, id) ?? '').mat
     const coordinates = match[1].trim().split(/\s+/).map(Number)
     return { x: coordinates.at(-2)!, y: coordinates.at(-1)! }
   })
+
+test('history skips unsaved days, spaces saved records equally, and hides x-axis dates', () => {
+  const html = render([
+    snapshot('2026-09-10', { JPY: 100, CNY: 0 }),
+    snapshot('2026-09-12', { JPY: 200, CNY: 0 }),
+    snapshot('2026-09-17', { JPY: 300, CNY: 0 }),
+  ])
+  for (const id of ['total', 'native']) {
+    assert.deepEqual(curvePoints(html, id).map(point => point.x), [56, 182, 308])
+  }
+  assert.ok(!html.includes('共 3 天'))
+  assert.match(html, /<button type="button" class="text-button history-reset">重置<\/button>/)
+  assert.ok(html.includes('较上次记录'))
+  assert.ok(!html.includes('较昨日变化'))
+  assert.ok(panels(html)[0].includes('>+ 100</strong>'))
+  assert.ok(panels(html)[0].includes('+50.00%'))
+  assert.ok(!html.includes('沿用'))
+  assert.ok(!html.includes('history-dates'))
+  const svgContent = html.match(/<svg viewBox="0 0 320 158"[^>]*>(.*?)<\/svg>/s)?.[1]
+  assert.ok(svgContent)
+  assert.ok(!/2026-\d{2}-\d{2}/.test(svgContent))
+  const cards = [...html.matchAll(/<details\b[^>]*>(.*?)<\/details>/gs)].map(match => match[1])
+  assert.deepEqual(cards.map(card => card.match(/<strong>(\d{4}-\d{2}-\d{2})/)?.[1]), ['2026-09-17', '2026-09-12', '2026-09-10'])
+  const single = render([snapshot('2026-09-10', { JPY: 100, CNY: 0 })])
+  assert.equal(curvePoints(single, 'total').length, 1)
+  assert.ok(panels(single)[0].includes('暂无可比记录'))
+  assert.match(render([]), /class="text-button history-reset" disabled=""/)
+})
 
 test('both currencies use actual amounts, with daily changes above a single chart', () => {
   for (const currency of ['JPY', 'CNY'] as const) {
@@ -106,7 +134,7 @@ test('zero balances are plotted without inventing a daily percentage', () => {
   assert.equal(curvePoints(html, 'native').length, 2)
   assert.ok(line(html, 'total')?.includes('L'))
   const native = panels(html)[1]
-  assert.ok(native.includes('昨日余额为 0'))
+  assert.ok(native.includes('上次余额为 0'))
   assert.ok(!native.match(/<p class="chart-change">(.*?)<\/p>/s)?.[1].includes('%'))
   assert.ok(native.includes('>+ 100</strong>'))
   const zero = render([snapshot('2026-09-18', { JPY: 0, CNY: 0 })])
@@ -184,12 +212,12 @@ test('history offers snapshot correction with the actual saved date but no updat
   const asset: Asset = { id: 'one', source: '银行账户', currency: 'JPY', amountMinor: 100, updatedDay: '2026-09-17', updatedAt: '2026-09-18T00:00:00Z' }
   const saved = { ...snapshot('2026-09-17', { JPY: 100, CNY: 0 }), assets: [asset] }
   const renderDay = (day: string, open: boolean, busy = false) => renderToStaticMarkup(createElement(HistoryDay, {
-    point: { day, snapshot: saved, carried: day !== saved.day }, currency: 'JPY', today: '2026-09-18', onCorrect: () => {}, onToggle: () => {}, open, busy,
+    point: { day, snapshot: saved }, currency: 'JPY', today: '2026-09-18', onCorrect: () => {}, onToggle: () => {}, open, busy,
   }))
   const closed = renderDay('2026-09-17', false)
   assert.ok(!closed.includes('银行账户'))
   assert.ok(!closed.includes('day-detail'))
-  const html = renderDay('2026-09-17', true) + renderDay('2026-09-18', true)
+  const html = renderDay('2026-09-17', true)
   assert.ok(html.includes('银行账户'))
   assert.ok(html.includes(money(100, 'JPY')))
   assert.ok(!html.includes('更新为今日余额'))
@@ -202,14 +230,16 @@ test('history offers snapshot correction with the actual saved date but no updat
 
 test('history initially mounts only the latest three days while keeping the full chart and earlier comparison', () => {
   const html = render([
+    snapshot('2026-09-10', { JPY: 50, CNY: 0 }),
+    snapshot('2026-09-12', { JPY: 75, CNY: 0 }),
     snapshot('2026-09-14', { JPY: 100, CNY: 0 }),
     snapshot('2026-09-16', { JPY: 150, CNY: 0 }),
   ])
   const cards = [...html.matchAll(/<details\b[^>]*>(.*?)<\/details>/gs)].map(match => match[1])
   assert.equal(cards.length, 3)
-  assert.deepEqual(cards.map(card => card.match(/<strong>(\d{4}-\d{2}-\d{2})/)?.[1]), ['2026-09-18', '2026-09-17', '2026-09-16'])
-  assert.ok(cards[2].includes('较 2026-09-14 + 50 JPY'))
-  assert.equal(curvePoints(html, 'total').length, 5)
+  assert.deepEqual(cards.map(card => card.match(/<strong>(\d{4}-\d{2}-\d{2})/)?.[1]), ['2026-09-16', '2026-09-14', '2026-09-12'])
+  assert.ok(cards[2].includes('较 2026-09-10 + 25 JPY'))
+  assert.equal(curvePoints(html, 'total').length, 4)
   assert.ok(html.includes('展开全部历史'))
   assert.ok(html.includes('aria-expanded="false"'))
   assert.ok(!html.includes('day-detail'))
@@ -221,11 +251,11 @@ test('snapshot editor locks source and currency and explains affected dates and 
   const asset: Asset = { id: 'one', source: '银行账户', currency: 'JPY', amountMinor: 100, updatedDay: '2026-09-17', updatedAt: '2026-09-17T00:00:00Z' }
   for (const affectsCurrent of [true, false]) {
     const html = renderToStaticMarkup(createElement(AssetEditor, {
-      asset, history: { day: '2026-09-17', through: '2026-09-18', affectsCurrent }, currency: 'CNY',
+      asset, history: { day: '2026-09-17', affectsCurrent }, currency: 'CNY',
       onClose: () => {}, onSave: async () => {}, onDelete: async () => {},
     }))
     assert.ok(html.includes('2026-09-17 的余额'))
-    assert.ok(html.includes('截至 2026-09-18'))
+    assert.ok(!html.includes('沿用'))
     assert.ok(html.includes('readOnly=""'))
     assert.equal((html.match(/type="button" disabled="" aria-pressed/g) ?? []).length, 2)
     assert.ok(html.includes('保存历史修正'))

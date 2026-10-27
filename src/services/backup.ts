@@ -47,7 +47,9 @@ export function parseBackup(text: string, today = localDay()): Ledger {
   return { revision: 0, assets: current, snapshots }
 }
 export function exportBackup(ledger: Ledger) {
-  return JSON.stringify({ app: 'my-assets', schemaVersion: 1, exportedAt: new Date().toISOString(), data: ledger }, null, 2)
+  // Export saved state only; never expand calendar gaps into carried records.
+  const data = { revision: ledger.revision, assets: ledger.assets, snapshots: ledger.snapshots }
+  return JSON.stringify({ app: 'my-assets', schemaVersion: 1, exportedAt: new Date().toISOString(), data }, null, 2)
 }
 export function downloadBackup(ledger: Ledger) {
   const url = URL.createObjectURL(new Blob([exportBackup(ledger)], { type: 'application/json' }))
