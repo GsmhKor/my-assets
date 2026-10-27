@@ -102,18 +102,18 @@ export function convertedTotal(totals: Totals, currency: Currency, rate: Rate | 
   if (!Number.isSafeInteger(number)) throw new Error('折算金额过大，无法精确显示。')
   return number
 }
-export function investmentSummary(assets: readonly Asset[], rate: Rate | null): { cash: number | null; returnPercent: number | null } {
+export function investmentSummary(assets: readonly Asset[], rate: Rate | null, currency: Currency = 'CNY'): { cash: number | null; returnPercent: number | null } {
   const capitalAssets = assets.filter(asset => investmentKind(asset) === 'capital')
   const cashAssets = assets.filter(asset => investmentKind(asset) === 'cash')
-  const capital = capitalAssets.length ? convertedTotal(sumAssets(capitalAssets), 'CNY', rate) : null
-  const cash = convertedTotal(sumAssets(cashAssets), 'CNY', rate)
+  const capital = capitalAssets.length ? convertedTotal(sumAssets(capitalAssets), currency, rate) : null
+  const cash = convertedTotal(sumAssets(cashAssets), currency, rate)
   const returnPercent = capital !== null && capital > 0 && cash !== null && cashAssets.length
     ? (cash - capital) / capital * 100 : null
   return { cash, returnPercent }
 }
-export function lentOutTotal(assets: readonly Asset[], rate: Rate | null): number | null {
+export function lentOutTotal(assets: readonly Asset[], rate: Rate | null, currency: Currency = 'CNY'): number | null {
   const lentOut = assets.filter(asset => asset.source.includes('投资') && !investmentKind(asset))
-  return convertedTotal(sumAssets(lentOut), 'CNY', rate)
+  return convertedTotal(sumAssets(lentOut), currency, rate)
 }
 export function money(minor: number | null, currency: Currency, fractionDigits = 0): string {
   if (minor === null) return '待汇率'

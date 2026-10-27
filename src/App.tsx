@@ -183,8 +183,8 @@ export default function App() {
   }
   const totals = ordinaryTotals(sumAssets(ledger?.assets ?? []), ledger?.assets ?? [])
   const total = convertedTotal(totals, currency, rate)
-  const investment = investmentSummary(ledger?.assets ?? [], rate)
-  const lentOut = lentOutTotal(ledger?.assets ?? [], rate)
+  const investment = investmentSummary(ledger?.assets ?? [], rate, currency)
+  const lentOut = lentOutTotal(ledger?.assets ?? [], rate, currency)
   const investmentPercent = investment.returnPercent === null ? '—' : `${investment.returnPercent > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(investment.returnPercent)}%`
   const visibleAssets = sortAssetsByAmount((ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())), assetSort, rate)
   const needsSortRate = assetSort !== 'default' && !validRate(rate) && new Set(visibleAssets.map(asset => asset.currency)).size > 1
@@ -220,10 +220,8 @@ export default function App() {
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {tab === 'home' && <>
           <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today}>
-            {currency === 'CNY' && <>
-              <p className="finance-line"><span className="finance-label">投资</span><b className="money">{money(investment.cash, 'CNY', 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>
-              <p className="finance-line"><span className="finance-label">出借</span><b className="money">{money(lentOut, 'CNY', 0)}</b></p>
-            </>}
+            <p className="finance-line"><span className="finance-label">投资</span><b className="money">{money(investment.cash, currency, 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>
+            <p className="finance-line"><span className="finance-label">出借</span><b className="money">{money(lentOut, currency, 0)}</b></p>
           </TotalBalance><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
           <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />
           {rateError && <p className="notice small" role="status">{rateError}</p>}
