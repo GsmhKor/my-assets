@@ -222,7 +222,7 @@ export default function App() {
           <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today}>
             {currency === 'CNY' && <>
               <p className="finance-line"><span className="finance-label">投资</span><b className="money">{money(investment.cash, 'CNY', 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>
-              <p className="finance-line"><span className="finance-label">借出</span><b className="money">{money(lentOut, 'CNY', 0)}</b></p>
+              <p className="finance-line"><span className="finance-label">出借</span><b className="money">{money(lentOut, 'CNY', 0)}</b></p>
             </>}
           </TotalBalance><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
           <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />
