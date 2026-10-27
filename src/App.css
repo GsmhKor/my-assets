@@ -24,4 +24,4 @@
 
 .history-reset{min-height:44px;padding:10px 12px;color:var(--danger)}
 
-.investment-line{margin:13px 0 0;font-size:13px;line-height:1.5;overflow-wrap:anywhere}.investment-line b{font-size:14px}.investment-line small{font-size:11px;white-space:nowrap}.investment-return.profit{color:var(--danger)}.investment-return.loss{color:#39815b}[data-theme=dark] .investment-return.loss{color:#8ac99e}
+.investment-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 6px;margin:5px 0 0;max-width:100%;line-height:1.5;overflow-wrap:anywhere}.investment-label{font-size:12px;color:var(--muted)}.investment-line b{font-size:14px;font-weight:600}.investment-line small{font-size:11px;white-space:nowrap}.investment-return.profit{color:var(--danger)}.investment-return.loss{color:#39815b}[data-theme=dark] .investment-return.loss{color:#8ac99e}
