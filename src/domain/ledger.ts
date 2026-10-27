@@ -65,6 +65,18 @@ export function sumAssets(assets: Asset[]): Totals {
   }
   return totals
 }
+export function investmentKind(asset: Pick<Asset, 'source'>): 'capital' | 'cash' | null {
+  if (asset.source === '投资本金') return 'capital'
+  if (asset.source === '投资现金') return 'cash'
+  return null
+}
+export function ordinaryTotals(totals: Totals, assets: readonly Asset[]): Totals {
+  const result = { ...totals }
+  for (const asset of assets) {
+    if (investmentKind(asset)) result[asset.currency] -= asset.amountMinor
+  }
+  return result
+}
 export function validRate(value: unknown): value is Rate {
   if (!value || typeof value !== 'object') return false
   const rate = value as Rate
@@ -89,6 +101,15 @@ export function convertedTotal(totals: Totals, currency: Currency, rate: Rate | 
   const number = Number(result)
   if (!Number.isSafeInteger(number)) throw new Error('折算金额过大，无法精确显示。')
   return number
+}
+export function investmentSummary(assets: readonly Asset[], rate: Rate | null): { cash: number | null; returnPercent: number | null } {
+  const capitalAssets = assets.filter(asset => investmentKind(asset) === 'capital')
+  const cashAssets = assets.filter(asset => investmentKind(asset) === 'cash')
+  const capital = capitalAssets.length ? convertedTotal(sumAssets(capitalAssets), 'CNY', rate) : null
+  const cash = convertedTotal(sumAssets(cashAssets), 'CNY', rate)
+  const returnPercent = capital !== null && capital > 0 && cash !== null && cashAssets.length
+    ? (cash - capital) / capital * 100 : null
+  return { cash, returnPercent }
 }
 export function money(minor: number | null, currency: Currency, fractionDigits = 0): string {
   if (minor === null) return '待汇率'
@@ -156,6 +177,6 @@ export function totalChangeAmount(current: number | null, snapshots: Snapshot[],
   const previous = snapshots.filter(snapshot => snapshot.day <= yesterday)
     .sort((a, b) => a.day.localeCompare(b.day)).at(-1)
   if (current === null || !previous) return null
-  const previousTotal = convertedTotal(previous.totals, currency, previous.rate)
+  const previousTotal = convertedTotal(ordinaryTotals(previous.totals, previous.assets), currency, previous.rate)
   return previousTotal === null ? null : current - previousTotal
 }

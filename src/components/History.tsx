@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Asset, Currency, Ledger } from '../domain/ledger'
-import { convertedTotal, historyBetween, money } from '../domain/ledger'
+import { convertedTotal, historyBetween, money, ordinaryTotals } from '../domain/ledger'
 import { HistoryList } from './HistoryList'
 import { formatMoneyChange, moneyChangeClass } from './balanceChange'
 import { historyScale } from './historyScale'
@@ -10,8 +10,9 @@ const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberForm
 export function History({ ledger, currency, today, onCorrect, onReset, busy = false }: { ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; onReset: () => void; busy?: boolean }) {
   const from = ledger.snapshots[0]?.day ?? today
   const points = useMemo(() => historyBetween(ledger.snapshots, from, today), [ledger.snapshots, from, today])
-  const amounts = points.map(point => convertedTotal(point.snapshot.totals, currency, point.snapshot.rate))
-  const nativeAmounts = points.map(point => point.snapshot.totals[currency])
+  const pointTotals = points.map(point => ordinaryTotals(point.snapshot.totals, point.snapshot.assets))
+  const amounts = points.map((point, index) => convertedTotal(pointTotals[index], currency, point.snapshot.rate))
+  const nativeAmounts = pointTotals.map(totals => totals[currency])
   const nativeLabel = '实际资产'
   const latestTotal = amounts.at(-1)
   const latestNative = nativeAmounts.at(-1)

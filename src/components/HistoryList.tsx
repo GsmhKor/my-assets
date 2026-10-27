@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Asset, Currency, HistoryPoint, Snapshot } from '../domain/ledger'
-import { convertedTotal, currencyName, money } from '../domain/ledger'
+import { convertedTotal, currencyName, money, ordinaryTotals } from '../domain/ledger'
 import { Icon } from './Icon'
 import { balanceChange, formatMoneyChange } from './balanceChange'
 
@@ -47,14 +47,16 @@ export function HistoryDay({ point, previous, currency, today, onCorrect, busy, 
   onToggle: (open: boolean) => void
 }) {
   const nativeLabel = `实际${currencyName(currency)}资产`
-  const total = convertedTotal(point.snapshot.totals, currency, point.snapshot.rate)
-  const previousTotal = previous ? convertedTotal(previous.totals, currency, previous.rate) : null
+  const totals = ordinaryTotals(point.snapshot.totals, point.snapshot.assets)
+  const previousTotals = previous ? ordinaryTotals(previous.totals, previous.assets) : null
+  const total = convertedTotal(totals, currency, point.snapshot.rate)
+  const previousTotal = previousTotals && previous ? convertedTotal(previousTotals, currency, previous.rate) : null
   const totalChange = total !== null && previousTotal !== null ? total - previousTotal : null
-  const nativeChange = previous ? point.snapshot.totals[currency] - previous.totals[currency] : null
+  const nativeChange = previousTotals ? totals[currency] - previousTotals[currency] : null
   const comparison = previous ? `较 ${previous.day}` : '暂无可比记录'
   return <details className="card day-card" open={open} onToggle={event => onToggle(event.currentTarget.open)}>
-      <summary><span><strong>{point.day}{point.day === today ? ' · 今天' : ''}</strong><small>当日最后保存</small></span><b className="money"><small>总资产（折算）</small><span className="money" title={totalChange !== null ? `${comparison} ${formatMoneyChange(totalChange, currency)}` : '暂无可比金额'}>{money(total, currency, 0)}</span><small className="money" title={nativeChange !== null ? `${comparison} ${formatMoneyChange(nativeChange, currency)}` : comparison}>{nativeLabel} {money(point.snapshot.totals[currency], currency, 0)}</small></b><Icon name="chevron-right" size={17} /></summary>
-      {open && <div className="day-detail"><p className="small muted"><span className="money">日元 {money(point.snapshot.totals.JPY, 'JPY')}</span> · <span className="money">人民币 {money(point.snapshot.totals.CNY, 'CNY', 0)}</span></p>{previous && <p className="small muted">{comparison}：总资产 <span className="money">{formatMoneyChange(totalChange, currency, { showCurrency: false })}</span> · 实际余额 <span className="money">{formatMoneyChange(nativeChange, currency, { showCurrency: false })}</span></p>}<p className="small muted">{point.snapshot.rate ? <>
+      <summary><span><strong>{point.day}{point.day === today ? ' · 今天' : ''}</strong><small>当日最后保存</small></span><b className="money"><small>总资产（折算）</small><span className="money" title={totalChange !== null ? `${comparison} ${formatMoneyChange(totalChange, currency)}` : '暂无可比金额'}>{money(total, currency, 0)}</span><small className="money" title={nativeChange !== null ? `${comparison} ${formatMoneyChange(nativeChange, currency)}` : comparison}>{nativeLabel} {money(totals[currency], currency, 0)}</small></b><Icon name="chevron-right" size={17} /></summary>
+      {open && <div className="day-detail"><p className="small muted"><span className="money">日元 {money(totals.JPY, 'JPY')}</span> · <span className="money">人民币 {money(totals.CNY, 'CNY', 0)}</span></p>{previous && <p className="small muted">{comparison}：总资产 <span className="money">{formatMoneyChange(totalChange, currency, { showCurrency: false })}</span> · 实际余额 <span className="money">{formatMoneyChange(nativeChange, currency, { showCurrency: false })}</span></p>}<p className="small muted">{point.snapshot.rate ? <>
         快照汇率<br />
         1 CNY = {point.snapshot.rate.cnyToJpy.toFixed(2)} JPY<br />
         10000 JPY = {(10000 / point.snapshot.rate.cnyToJpy).toFixed(2)} CNY<br />

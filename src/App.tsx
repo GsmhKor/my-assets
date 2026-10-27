@@ -6,7 +6,7 @@ import { TotalBalance } from './components/TotalBalance'
 import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
-import { convertedTotal, correctSnapshotAmount, currencyName, localDay, money, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, validRate } from './domain/ledger'
+import { convertedTotal, correctSnapshotAmount, currencyName, investmentSummary, localDay, money, ordinaryTotals, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { assetSortPreference, sortAssetsByAmount } from './domain/assetSort'
 import type { AssetSortOrder } from './domain/assetSort'
@@ -181,8 +181,10 @@ export default function App() {
       await mutate(() => restored, revision); setMessage('备份已恢复。')
     } catch (error) { setMessage(errorText(error)) }
   }
-  const totals = sumAssets(ledger?.assets ?? [])
+  const totals = ordinaryTotals(sumAssets(ledger?.assets ?? []), ledger?.assets ?? [])
   const total = convertedTotal(totals, currency, rate)
+  const investment = investmentSummary(ledger?.assets ?? [], rate)
+  const investmentPercent = investment.returnPercent === null ? '—' : `${investment.returnPercent > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(investment.returnPercent)}%`
   const visibleAssets = sortAssetsByAmount((ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())), assetSort, rate)
   const needsSortRate = assetSort !== 'default' && !validRate(rate) && new Set(visibleAssets.map(asset => asset.currency)).size > 1
   function assetRows(rows: Asset[]) {
@@ -216,7 +218,7 @@ export default function App() {
       {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {tab === 'home' && <>
-          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today} /><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
+          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today} /><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b>{currency === 'CNY' && <p className="investment-line"><span>投资</span><b className="money">{money(investment.cash, 'CNY', 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>}</div></div></section>
           <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />
           {rateError && <p className="notice small" role="status">{rateError}</p>}
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请联网后刷新。</p>}
