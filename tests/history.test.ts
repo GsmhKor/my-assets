@@ -66,24 +66,25 @@ test('investment rows remain in history details while both chart series exclude 
   const asset = (id: string, source: string, amountMinor: number): Asset => ({
     id, source, currency: 'CNY', amountMinor, updatedDay: '2026-09-17', updatedAt: '2026-09-17T00:00:00Z',
   })
-  const firstAssets = [asset('capital', '投资本金', 10000), asset('cash', '投资现金', 12000), asset('regular', '投资现金账户', 3000)]
-  const secondAssets = [firstAssets[0], asset('cash', '投资现金', 18000), firstAssets[2]]
+  const firstAssets = [asset('capital', '投资本金', 10000), asset('cash', '投资现金', 12000), asset('lent', '投资现金账户', 4000), asset('regular', '银行账户', 3000)]
+  const secondAssets = [firstAssets[0], asset('cash', '投资现金', 18000), firstAssets[2], firstAssets[3]]
   const html = render([
-    { ...snapshot('2026-09-17', { JPY: 0, CNY: 25000 }), assets: firstAssets },
-    { ...snapshot('2026-09-18', { JPY: 0, CNY: 31000 }), assets: secondAssets },
+    { ...snapshot('2026-09-17', { JPY: 0, CNY: 29000 }), assets: firstAssets },
+    { ...snapshot('2026-09-18', { JPY: 0, CNY: 35000 }), assets: secondAssets },
   ], 'CNY')
   assert.equal(curvePoints(html, 'total').length, 2)
   assert.equal(curvePoints(html, 'total')[0].y, curvePoints(html, 'total')[1].y)
   assert.equal(curvePoints(html, 'native')[0].y, curvePoints(html, 'native')[1].y)
   assert.ok(html.includes(money(3000, 'CNY', 0)))
-  assert.ok(!panels(html)[0].includes(money(31000, 'CNY', 0)))
+  assert.ok(!panels(html)[0].includes(money(35000, 'CNY', 0)))
   assert.ok(html.includes('较上次记录'))
   const detail = renderToStaticMarkup(createElement(HistoryDay, {
-    point: { day: '2026-09-18', snapshot: { ...snapshot('2026-09-18', { JPY: 0, CNY: 31000 }), assets: secondAssets } },
+    point: { day: '2026-09-18', snapshot: { ...snapshot('2026-09-18', { JPY: 0, CNY: 35000 }), assets: secondAssets } },
     currency: 'CNY', today: '2026-09-18', onCorrect: () => {}, onToggle: () => {}, open: true, busy: false,
   }))
   assert.ok(detail.includes('投资本金'))
   assert.ok(detail.includes('投资现金'))
+  assert.ok(detail.includes('投资现金账户'))
   assert.ok(detail.includes(money(3000, 'CNY', 0)))
 })
 

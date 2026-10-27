@@ -7,7 +7,7 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 const installName = '资金账本'
 export default defineConfig({
   base,
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: { __APP_VERSION__: JSON.stringify(version.replace(/\.0$/, '')) },
   plugins: [react(), {
     name: 'app-install-name',
     transformIndexHtml: (html) => html.replaceAll('__APP_INSTALL_NAME__', installName),

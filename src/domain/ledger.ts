@@ -73,7 +73,7 @@ export function investmentKind(asset: Pick<Asset, 'source'>): 'capital' | 'cash'
 export function ordinaryTotals(totals: Totals, assets: readonly Asset[]): Totals {
   const result = { ...totals }
   for (const asset of assets) {
-    if (investmentKind(asset)) result[asset.currency] -= asset.amountMinor
+    if (asset.source.includes('投资')) result[asset.currency] -= asset.amountMinor
   }
   return result
 }
@@ -110,6 +110,10 @@ export function investmentSummary(assets: readonly Asset[], rate: Rate | null): 
   const returnPercent = capital !== null && capital > 0 && cash !== null && cashAssets.length
     ? (cash - capital) / capital * 100 : null
   return { cash, returnPercent }
+}
+export function lentOutTotal(assets: readonly Asset[], rate: Rate | null): number | null {
+  const lentOut = assets.filter(asset => asset.source.includes('投资') && !investmentKind(asset))
+  return convertedTotal(sumAssets(lentOut), 'CNY', rate)
 }
 export function money(minor: number | null, currency: Currency, fractionDigits = 0): string {
   if (minor === null) return '待汇率'

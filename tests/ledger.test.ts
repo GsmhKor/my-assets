@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { EMPTY_LEDGER, amountInput, convertedTotal, historyBetween, investmentKind, investmentSummary, ordinaryTotals, parseAmount, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, totalChangeAmount } from '../src/domain/ledger.ts'
+import { EMPTY_LEDGER, amountInput, convertedTotal, historyBetween, investmentKind, investmentSummary, lentOutTotal, ordinaryTotals, parseAmount, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, totalChangeAmount } from '../src/domain/ledger.ts'
 import type { Asset, Rate } from '../src/domain/ledger.ts'
 import { exportBackup, parseBackup } from '../src/services/backup.ts'
 
@@ -29,7 +29,7 @@ test('negative balances, precision and two-way conversion', () => {
   assert.equal(convertedTotal({ JPY: -1000, CNY: 0 }, 'JPY', null), -1000)
 })
 
-test('exact investment names stay in saved assets but leave ordinary totals, including legacy backups', () => {
+test('investment names classify exactly while all matching names leave ordinary totals without changing backups', () => {
   const rows: Asset[] = [
     { id: 'capital', source: '投资本金', currency: 'CNY', amountMinor: 10000, updatedDay: '2026-09-15', updatedAt: first.toISOString() },
     { id: 'cash', source: '投资现金', currency: 'CNY', amountMinor: 12000, updatedDay: '2026-09-15', updatedAt: first.toISOString() },
@@ -42,12 +42,12 @@ test('exact investment names stay in saved assets but leave ordinary totals, inc
   assert.equal(investmentKind({ source: '投资现金 ' }), null)
   const saved = recordSnapshot(EMPTY_LEDGER, rows, rate, first)
   assert.deepEqual(saved.snapshots[0].totals, { JPY: 500, CNY: 25000 })
-  assert.deepEqual(ordinaryTotals(saved.snapshots[0].totals, saved.snapshots[0].assets), { JPY: 500, CNY: 3000 })
+  assert.deepEqual(ordinaryTotals(saved.snapshots[0].totals, saved.snapshots[0].assets), { JPY: 500, CNY: 0 })
   const restored = parseBackup(exportBackup(saved), '2026-09-15')
   assert.deepEqual(restored.assets, rows)
   assert.deepEqual(restored.snapshots, saved.snapshots)
-  assert.deepEqual(ordinaryTotals(restored.snapshots[0].totals, restored.snapshots[0].assets), { JPY: 500, CNY: 3000 })
-  assert.equal(totalChangeAmount(1100, restored.snapshots, 'JPY', '2026-09-16'), 0)
+  assert.deepEqual(ordinaryTotals(restored.snapshots[0].totals, restored.snapshots[0].assets), { JPY: 500, CNY: 0 })
+  assert.equal(totalChangeAmount(500, restored.snapshots, 'JPY', '2026-09-16'), 0)
   assert.deepEqual(investmentSummary(rows, rate), { cash: 12000, returnPercent: 20 })
   assert.deepEqual(investmentSummary(rows.map(asset => asset.id === 'cash' ? { ...asset, amountMinor: 8000 } : asset), rate), { cash: 8000, returnPercent: -20 })
   assert.deepEqual(investmentSummary(rows.filter(asset => asset.id !== 'capital'), rate), { cash: 12000, returnPercent: null })
@@ -56,6 +56,11 @@ test('exact investment names stay in saved assets but leave ordinary totals, inc
   const yenCash = rows.map(asset => asset.id === 'cash' ? { ...asset, currency: 'JPY' as const, amountMinor: 2400 } : asset)
   assert.deepEqual(investmentSummary(yenCash, rate), { cash: 12000, returnPercent: 20 })
   assert.deepEqual(investmentSummary(yenCash, null), { cash: null, returnPercent: null })
+  assert.equal(lentOutTotal(rows, rate), 3000)
+  assert.equal(lentOutTotal(rows.filter(asset => asset.id !== 'ordinary'), rate), 0)
+  const yenLoan = rows.map(asset => asset.id === 'ordinary' ? { ...asset, currency: 'JPY' as const, amountMinor: 600 } : asset)
+  assert.equal(lentOutTotal(yenLoan, rate), 3000)
+  assert.equal(lentOutTotal(yenLoan, null), null)
 })
 
 test('editing legacy CNY rounds to whole yuan and saves without changing previous history', () => {
