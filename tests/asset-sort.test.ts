@@ -8,16 +8,9 @@ const asset = (id: string, source: string, currency: Currency, amountMinor: numb
 })
 const ids = (assets: Asset[]) => assets.map(item => item.id)
 
-test('default keeps newest updates first', () => {
-  const assets = [
-    { ...asset('old', '银行', 'JPY', 99999), updatedAt: '2026-09-25T23:00:00Z' },
-    { ...asset('new', '北京', 'CNY', -1000), updatedAt: '2026-09-26T09:00:00+09:00' },
-    { ...asset('middle', '中信', 'JPY', 0), updatedAt: '2026-09-25T23:30:00Z' },
-  ]
-  const original = structuredClone(assets)
-  assert.deepEqual(ids(sortAssets(assets, 'default')), ['new', 'middle', 'old'])
-  assert.deepEqual(assets, original)
-  assert.equal(assetSortPreference('invalid'), 'default')
+test('missing and legacy default preferences select pinyin ascending', () => {
+  assert.equal(assetSortPreference('default'), 'asc')
+  assert.equal(assetSortPreference('invalid'), 'asc')
   assert.equal(assetSortPreference('asc'), 'asc')
   assert.equal(assetSortPreference('desc'), 'desc')
 })
