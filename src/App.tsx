@@ -5,9 +5,10 @@ import { History } from './components/History'
 import { TotalBalance } from './components/TotalBalance'
 import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
+import { balanceChange, formatMoneyChange } from './components/balanceChange'
 import { convertedTotal, correctSnapshotAmount, currencyName, investmentSummary, lentOutTotal, localDay, money, ordinaryTotals, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
-import { assetSortPreference, sortAssetsByAmount } from './domain/assetSort'
+import { assetSortPreference, sortAssets } from './domain/assetSort'
 import type { AssetSortOrder } from './domain/assetSort'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchRate } from './services/rates'
@@ -185,14 +186,16 @@ export default function App() {
   const investment = investmentSummary(ledger?.assets ?? [], rate)
   const lentOut = lentOutTotal(ledger?.assets ?? [], rate)
   const investmentPercent = investment.returnPercent === null ? '—' : `${investment.returnPercent > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(investment.returnPercent)}%`
-  const visibleAssets = sortAssetsByAmount((ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())), assetSort, rate)
-  const needsSortRate = assetSort !== 'default' && !validRate(rate) && new Set(visibleAssets.map(asset => asset.currency)).size > 1
+  const visibleAssets = sortAssets((ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())), assetSort)
   function assetRows(rows: Asset[]) {
     return rows.map(asset => {
+      const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
+      const change = balanceChange(asset, previous)
       const balance = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(asset.amountMinor / (asset.currency === 'JPY' ? 1 : 100))
-      return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source}，${asset.currency} ${balance}`}>
+      return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source}，${asset.currency} ${balance}，变化${change === null ? '暂无记录' : formatMoneyChange(change, asset.currency)}`}>
         <span className="asset-copy" title={asset.source}>{asset.source}</span>
-        <span className={`asset-money money${asset.amountMinor < 0 ? ' negative' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
+        <span className="asset-money money">{asset.currency}{'\u00a0'}{balance}</span>
+        <span className="asset-delta money" title={previous ? `较 ${previous.day} ${change === null ? '暂无可比记录' : formatMoneyChange(change, asset.currency)}` : '暂无可比记录'}>{change === null ? '—' : formatMoneyChange(change, asset.currency, { showCurrency: false })}</span>
       </button>
     })
   }
@@ -219,9 +222,8 @@ export default function App() {
         </>}
         {tab === 'assets' && <>
           <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>
-          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><label className="asset-sort"><span>排序</span><select aria-label="资产排序" value={assetSort} onChange={event => { const value = assetSortPreference(event.target.value); setAssetSort(value); remember('asset-sort', value) }}><option value="default">默认</option><option value="desc">降序</option><option value="asc">升序</option></select></label></div>
-          {needsSortRate && <p className="small muted asset-sort-note">缺少汇率，暂按币种分别排序。</p>}
-          <section className="card assets-list">{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
+          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><label className="asset-sort"><span>排序</span><select aria-label="资产排序" value={assetSort} onChange={event => { const value = assetSortPreference(event.target.value); setAssetSort(value); remember('asset-sort', value) }}><option value="default">默认</option><option value="asc">名称拼音升序</option><option value="desc">名称拼音降序</option></select></label></div>
+          <section className={`card assets-list${visibleAssets.length ? ' assets-list-filled' : ''}`}>{visibleAssets.length ? <><div className="asset-list-head" aria-hidden="true"><span>名称</span><span>币种 金额</span><span>变化</span></div>{assetRows(visibleAssets)}</> : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
         </>}
         {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} onReset={() => void resetHistorical()} busy={busy} />}
         {tab === 'settings' && <>
