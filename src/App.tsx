@@ -44,6 +44,8 @@ export default function App() {
   const [saving, setBusy] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [pullChecking, setPullChecking] = useState(false)
   const checkUpdatePending = useRef(false)
   const updatePending = useRef(false)
   const [updateError, setUpdateError] = useState('')
@@ -88,6 +90,46 @@ export default function App() {
     } catch (error) { setMessage(errorText(error)) }
     finally { checkUpdatePending.current = false; setCheckingUpdate(false) }
   }
+  useEffect(() => {
+    const surface = document.querySelector<HTMLDivElement>('.app-shell')
+    if (!surface) return
+    let start: { x: number; y: number } | null = null
+    let distance = 0
+    const reset = () => { start = null; distance = 0; setPullDistance(0) }
+    const onStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1 || window.scrollY > 0 || editor || checkingUpdate || updating || saving) return
+      const target = event.target
+      if (target instanceof Element && target.closest('button,input,select,textarea,dialog,[contenteditable="true"]')) return
+      start = { x: event.touches[0].clientX, y: event.touches[0].clientY }
+    }
+    const onMove = (event: TouchEvent) => {
+      if (!start || event.touches.length !== 1) return
+      const deltaX = event.touches[0].clientX - start.x
+      const deltaY = event.touches[0].clientY - start.y
+      if (deltaY <= 0 || Math.abs(deltaX) > deltaY || window.scrollY > 0) { reset(); return }
+      if (event.cancelable) event.preventDefault()
+      distance = Math.min(80, Math.round(deltaY * .55))
+      setPullDistance(distance)
+    }
+    const onEnd = () => {
+      const shouldCheck = distance >= 64
+      reset()
+      if (shouldCheck) {
+        setPullChecking(true)
+        void checkAppUpdate().finally(() => setPullChecking(false))
+      }
+    }
+    surface.addEventListener('touchstart', onStart, { passive: true })
+    surface.addEventListener('touchmove', onMove, { passive: false })
+    surface.addEventListener('touchend', onEnd)
+    surface.addEventListener('touchcancel', reset)
+    return () => {
+      surface.removeEventListener('touchstart', onStart)
+      surface.removeEventListener('touchmove', onMove)
+      surface.removeEventListener('touchend', onEnd)
+      surface.removeEventListener('touchcancel', reset)
+    }
+  }, [editor, checkingUpdate, updating, saving, needRefresh, activatedUpdate, swRegistration])
   async function updateApp() {
     if (mutationPending.current || updatePending.current || editor) return
     updatePending.current = true; setUpdating(true); setUpdateError('')
@@ -194,12 +236,13 @@ export default function App() {
       const balance = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(asset.amountMinor / (asset.currency === 'JPY' ? 1 : 100))
       return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source}，${asset.currency} ${balance}，变化${change === null ? '暂无记录' : formatMoneyChange(change, asset.currency)}`}>
         <span className="asset-copy" title={asset.source}>{asset.source}</span>
-        <span className="asset-money money">{asset.currency}{'\u00a0'}{balance}</span>
+        <span className="asset-money money"><span className="asset-currency">{asset.currency}</span><span className="asset-amount">{balance}</span></span>
         <span className={`asset-delta money${moneyChangeClass(change)}`} title={previous ? `较 ${previous.day} ${change === null ? '暂无可比记录' : formatMoneyChange(change, asset.currency)}` : '暂无可比记录'}>{change === null ? '0' : formatMoneyChange(change, asset.currency, { showCurrency: false })}</span>
       </button>
     })
   }
   return <div className="app-shell">
+    {(pullDistance > 0 || pullChecking) && <div className={`pull-update${pullDistance >= 64 ? ' pull-update-ready' : ''}`} role="status" aria-live="polite">{pullChecking ? '正在检查更新…' : pullDistance >= 64 ? '松开检查更新' : '下拉检查更新'}</div>}
     <main className="page">
       <header className="app-header">
         <div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192-v1.8.0.png`} alt="" /><div className="brand-title"><strong>资金账本</strong><small className="brand-version">{__APP_VERSION__}</small></div></div>
