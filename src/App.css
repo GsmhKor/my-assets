@@ -25,3 +25,4 @@
 .history-reset{min-height:44px;padding:10px 12px;color:var(--danger)}
 
 .finance-lines{width:100%}.finance-lines-hidden{visibility:hidden}.finance-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 6px;margin:5px 0 0;max-width:100%;line-height:1.5;overflow-wrap:anywhere}.finance-label{font-size:12px;color:var(--muted)}.finance-line b{font-size:14px;font-weight:600}.finance-line small{font-size:11px;white-space:nowrap}.investment-return.profit{color:var(--danger)}.investment-return.loss{color:#39815b}[data-theme=dark] .investment-return.loss{color:#8ac99e}
+.assets-list .asset-row{min-height:48px;gap:10px;padding:10px 15px}.assets-list .asset-copy{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600}.assets-list .asset-money{flex-shrink:0;max-width:55%;white-space:nowrap;font-size:14px}.asset-context{display:grid;gap:4px;margin-top:16px;line-height:1.6}.asset-context p{overflow-wrap:anywhere}

@@ -5,7 +5,6 @@ import { History } from './components/History'
 import { TotalBalance } from './components/TotalBalance'
 import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
-import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
 import { convertedTotal, correctSnapshotAmount, currencyName, investmentSummary, lentOutTotal, localDay, money, ordinaryTotals, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { assetSortPreference, sortAssetsByAmount } from './domain/assetSort'
@@ -190,21 +189,10 @@ export default function App() {
   const needsSortRate = assetSort !== 'default' && !validRate(rate) && new Set(visibleAssets.map(asset => asset.currency)).size > 1
   function assetRows(rows: Asset[]) {
     return rows.map(asset => {
-      const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
-      const change = balanceChange(asset, previous)
-      const previousAmount = change === null ? null : asset.amountMinor - change
-      const changePercent = change !== null && previousAmount !== null && previousAmount !== 0 ? change / Math.abs(previousAmount) * 100 : null
-      const percentLabel = changePercent === null ? '—' : `${changePercent > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(changePercent)}%`
       const balance = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(asset.amountMinor / (asset.currency === 'JPY' ? 1 : 100))
-      return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source} ${asset.currency}`}>
-        <span className={`currency-badge ${asset.currency.toLowerCase()}`}>{asset.currency === 'JPY' ? '日' : '元'}</span>
-        <span className="asset-copy"><strong>{asset.source}</strong><small>{currencyName(asset.currency)}<time dateTime={asset.updatedDay} title={`更新于 ${asset.updatedDay}`}>{asset.updatedDay}</time></small></span>
-        <span className="asset-money money">
-          <span className={`money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
-          {change === null || change === 0 ? <small title={change === null ? '暂无可比历史记录' : `较 ${previous!.day} 无变化`}>无变化</small> : <small className={`asset-change money${moneyChangeClass(change)}`} title={`较 ${previous!.day} ${formatMoneyChange(change, asset.currency)}；${changePercent === null ? '原余额为 0，无法计算变化百分比' : `变化 ${percentLabel}`}`}><span>{formatMoneyChange(change, asset.currency, { showCurrency: false })}</span><span>（{percentLabel}）</span></small>}
-          {asset.currency !== currency && <small>≈ {money(convertedTotal({ JPY: 0, CNY: 0, [asset.currency]: asset.amountMinor }, currency, rate), currency)}</small>}
-        </span>
-        <Icon name="chevron-right" size={15} />
+      return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source}，${asset.currency} ${balance}`}>
+        <span className="asset-copy" title={asset.source}>{asset.source}</span>
+        <span className={`asset-money money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
       </button>
     })
   }
@@ -250,7 +238,7 @@ export default function App() {
     </main>
     {ledger && !loadError && tab !== 'settings' && <button className="floating-add" onClick={() => edit()} disabled={busy} aria-label="记一笔" title="记一笔资产" />}
     <nav className="tab-bar" aria-label="主导航">{tabs.map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => { setTab(item.id); setSearch('') }}>{item.image ? <img src={item.image} alt="" /> : <Icon name="settings" size={28} />}<span>{item.label}</span></button>)}</nav>
-    {editor && <AssetEditor asset={editor.asset} history={editor.history} currency={currency} onClose={() => setEditor(null)} onSave={save} onDelete={remove} />}
+    {editor && <AssetEditor asset={editor.asset} history={editor.history} currency={currency} rate={rate} previous={editor.asset && !editor.history ? ledger?.snapshots.findLast(snapshot => snapshot.day < editor.asset!.updatedDay) : undefined} onClose={() => setEditor(null)} onSave={save} onDelete={remove} />}
     {message && <div className="toast" role="status">{message}</div>}
   </div>
 }
