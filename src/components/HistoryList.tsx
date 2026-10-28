@@ -50,7 +50,7 @@ export function HistoryDay({ point, previous, currency, today, onCorrect, busy, 
   const totals = ordinaryTotals(point.snapshot.totals, point.snapshot.assets)
   const previousTotals = previous ? ordinaryTotals(previous.totals, previous.assets) : null
   const total = convertedTotal(totals, currency, point.snapshot.rate)
-  const previousTotal = previousTotals && previous ? convertedTotal(previousTotals, currency, previous.rate) : null
+  const previousTotal = previousTotals ? convertedTotal(previousTotals, currency, point.snapshot.rate) : null
   const totalChange = total !== null && previousTotal !== null ? total - previousTotal : null
   const nativeChange = previousTotals ? totals[currency] - previousTotals[currency] : null
   const comparison = previous ? `较 ${previous.day}` : '暂无可比记录'

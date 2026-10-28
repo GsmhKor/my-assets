@@ -115,6 +115,20 @@ test('both currencies use actual amounts, with daily changes above a single char
   }
 })
 
+test('historical CNY change shows a 990 investment without mixing exchange rate movement', () => {
+  const snapshots = [
+    snapshot('2026-09-17', { JPY: 20000, CNY: 1_000_000 }),
+    snapshot('2026-09-18', { JPY: 20000, CNY: 901_000 }, { ...rate, cnyToJpy: 21 }),
+  ]
+  const html = render(snapshots, 'CNY')
+  assert.ok(panels(html)[0].includes('>- 990</strong>'))
+  const detail = renderToStaticMarkup(createElement(HistoryDay, {
+    point: { day: '2026-09-18', snapshot: snapshots[1] }, previous: snapshots[0],
+    currency: 'CNY', today: '2026-09-18', onCorrect: () => {}, onToggle: () => {}, open: true, busy: false,
+  }))
+  assert.ok(detail.includes('总资产 <span class="money">- 990</span>'))
+})
+
 test('native share uses the latest total converted into the selected currency', () => {
   const snapshots = [snapshot('2026-09-17', { JPY: 500, CNY: 2500 }), snapshot('2026-09-18', { JPY: 200, CNY: 4000 })]
   const heading = (html: string) => panels(html)[1].match(/<h3>(.*?)<\/h3>/s)?.[1].replace(/<[^>]+>/g, '')
@@ -140,7 +154,7 @@ test('a missing initial rate leaves later available total amounts visible', () =
   assert.equal(curvePoints(html, 'total').length, 1)
   assert.equal(curvePoints(html, 'total')[0].x, curvePoints(html, 'native')[1].x)
   assert.equal(curvePoints(html, 'native').length, 2)
-  assert.match(panels(html)[0], /class="chart-change-values"><strong class="money">待汇率<\/strong>/)
+  assert.match(panels(html)[0], /class="chart-change-values"><strong class="money money-up">\+ 100<\/strong>/)
   assert.ok(html.includes('缺少汇率的日期不绘制折算总资产数据'))
   const missing = render([snapshot('2026-09-18', { JPY: 100, CNY: 10000 }, null)])
   assert.equal(line(missing, 'total'), '')

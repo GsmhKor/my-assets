@@ -78,6 +78,7 @@ test('places the daily change directly beneath the total, before investment line
     children: createElement('div', { className: 'finance-lines' }, '投资'),
   }))
   assert.ok(html.indexOf('balance-change') < html.indexOf('finance-lines'))
+  assert.match(html, /class="balance-main"[^>]*><strong[^>]*>.*?<\/strong><span class="balance-change/)
 })
 
 test('formats whole-yuan changes without signed zero and handles large amounts', () => {

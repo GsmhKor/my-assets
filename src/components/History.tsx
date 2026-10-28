@@ -24,7 +24,9 @@ export function History({ ledger, currency, today, onCorrect, onReset, busy = fa
     { id: 'native', label: nativeLabel, amounts: nativeAmounts },
   ].map(item => {
     const last = item.amounts.at(-1)
-    const previous = item.amounts.at(-2)
+    const previous = item.id === 'total' && pointTotals.length > 1
+      ? convertedTotal(pointTotals[pointTotals.length - 2], currency, points.at(-1)?.snapshot.rate ?? null)
+      : item.amounts.at(-2)
     const dailyChange = previous != null && last != null ? last - previous : null
     const dailyPercent = dailyChange !== null && previous != null && previous !== 0 ? dailyChange / Math.abs(previous) * 100 : null
     const valid = item.amounts.filter((amount): amount is number => amount !== null)
