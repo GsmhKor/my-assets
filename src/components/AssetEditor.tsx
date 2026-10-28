@@ -52,7 +52,7 @@ export function AssetEditor({ asset, history, currency: initialCurrency, rate = 
   }
   return <dialog ref={dialog} className="editor" aria-labelledby="editor-title" onCancel={event => { event.preventDefault(); close() }} onClick={event => { if (event.target === event.currentTarget) close() }}>
     <div className="editor-inner">
-      <header className="editor-heading"><button className="icon-button" type="button" aria-label="关闭" onClick={close} disabled={busy}><Icon name="close" /></button><h2 id="editor-title">{history ? '修正历史金额' : asset ? '更新资产余额' : '记一笔资产'}</h2><span /></header>
+      <header className="editor-heading"><button className="icon-button" type="button" aria-label="关闭" onClick={close} disabled={busy}><Icon name="close" /></button><h2 id="editor-title">{history ? '修正历史金额' : asset ? '更新资产余额' : '记录资产'}</h2><span /></header>
       <form onSubmit={event => { event.preventDefault(); void submit() }}>
         <fieldset disabled={busy}>
           <label className="field">资产来源<input autoFocus={!history} readOnly={Boolean(history)} required maxLength={60} value={source} onChange={event => setSource(event.target.value)} /></label>

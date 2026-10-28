@@ -54,7 +54,6 @@ export default function App() {
   const busy = saving || updating
   const mutationPending = useRef(false)
   const [message, setMessage] = useState('')
-  const [search, setSearch] = useState('')
   const [assetSort, setAssetSort] = useState<AssetSortOrder>(() => assetSortPreference(preference('asset-sort', 'asc')))
   const importInput = useRef<HTMLInputElement>(null)
   const channel = useRef<BroadcastChannel | null>(null)
@@ -228,7 +227,7 @@ export default function App() {
   const investment = investmentSummary(ledger?.assets ?? [], rate)
   const lentOut = lentOutTotal(ledger?.assets ?? [], rate)
   const investmentPercent = investment.returnPercent === null ? '—' : `${investment.returnPercent > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(investment.returnPercent)}%`
-  const visibleAssets = sortAssets((ledger?.assets ?? []).filter(asset => asset.source.toLocaleLowerCase().includes(search.toLocaleLowerCase())), assetSort)
+  const visibleAssets = sortAssets(ledger?.assets ?? [], assetSort)
   function assetRows(rows: Asset[]) {
     return rows.map(asset => {
       const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
@@ -264,9 +263,8 @@ export default function App() {
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请联网后刷新。</p>}
         </>}
         {tab === 'assets' && <>
-          <label className="search"><Icon name="search" size={18} /><input aria-label="搜索资产来源" placeholder="搜索资产来源" value={search} onChange={event => setSearch(event.target.value)} /></label>
-          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><label className="asset-sort"><select aria-label="资产排序" value={assetSort} onChange={event => { const value = assetSortPreference(event.target.value); setAssetSort(value); remember('asset-sort', value) }}><option value="asc">升序</option><option value="desc">降序</option></select></label></div>
-          <section className={`card assets-list${visibleAssets.length ? ' assets-list-filled' : ''}`}>{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>{search ? '没有找到这个来源' : '从第一份资产开始'}</h2><p>{search ? '试试其他关键词。' : '点击右下角猫咪，填写来源和当前余额。'}</p>{!search && <button className="text-button" onClick={() => edit()}>记一笔资产</button>}</div>}</section>
+          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><button type="button" className="asset-sort-toggle" aria-label={`当前按名称拼音${assetSort === 'asc' ? '升序' : '降序'}，点击切换为${assetSort === 'asc' ? '降序' : '升序'}`} title="按名称拼音排序" onClick={() => { const next = assetSort === 'asc' ? 'desc' : 'asc'; setAssetSort(next); remember('asset-sort', next) }}>{assetSort === 'asc' ? '升序' : '降序'}</button></div>
+          <section className={`card assets-list${visibleAssets.length ? ' assets-list-filled' : ''}`}>{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>从第一份资产开始</h2><p>点击右下角猫咪，填写来源和当前余额。</p><button className="text-button" onClick={() => edit()}>记录资产</button></div>}</section>
         </>}
         {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} onReset={() => void resetHistorical()} busy={busy} />}
         {tab === 'settings' && <>
@@ -281,8 +279,8 @@ export default function App() {
         </>}
       </>}
     </main>
-    {ledger && !loadError && tab !== 'settings' && <button className="floating-add" onClick={() => edit()} disabled={busy} aria-label="记一笔" title="记一笔资产" />}
-    <nav className="tab-bar" aria-label="主导航">{tabs.map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => { setTab(item.id); setSearch('') }}>{item.image ? <img src={item.image} alt="" /> : <Icon name="settings" size={28} />}<span>{item.label}</span></button>)}</nav>
+    {ledger && !loadError && tab !== 'settings' && <button className="floating-add" onClick={() => edit()} disabled={busy} aria-label="记录资产" title="记录资产" />}
+    <nav className="tab-bar" aria-label="主导航">{tabs.map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}>{item.image ? <img src={item.image} alt="" /> : <Icon name="settings" size={28} />}<span>{item.label}</span></button>)}</nav>
     {editor && <AssetEditor asset={editor.asset} history={editor.history} currency={currency} rate={rate} previous={editor.asset && !editor.history ? ledger?.snapshots.findLast(snapshot => snapshot.day < editor.asset!.updatedDay) : undefined} onClose={() => setEditor(null)} onSave={save} onDelete={remove} />}
     {message && <div className="toast" role="status">{message}</div>}
   </div>
