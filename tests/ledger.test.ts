@@ -47,7 +47,7 @@ test('investment names classify exactly while all matching names leave ordinary 
   assert.deepEqual(restored.assets, rows)
   assert.deepEqual(restored.snapshots, saved.snapshots)
   assert.deepEqual(ordinaryTotals(restored.snapshots[0].totals, restored.snapshots[0].assets), { JPY: 500, CNY: 0 })
-  assert.equal(totalChangeAmount(500, restored.snapshots, 'JPY', '2026-09-16'), 0)
+  assert.equal(totalChangeAmount(500, restored.snapshots, 'JPY', rate, '2026-09-16'), 0)
   assert.deepEqual(investmentSummary(rows, rate), { cash: 12000, returnPercent: 20 })
   assert.deepEqual(investmentSummary(rows, rate, 'JPY'), { cash: 2400, returnPercent: 20 })
   assert.deepEqual(investmentSummary(rows, { ...rate, cnyToJpy: 21 }, 'JPY'), { cash: 2520, returnPercent: 20 })

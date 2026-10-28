@@ -175,12 +175,13 @@ export function historyBetween(snapshots: Snapshot[], from: string, to: string):
     .map(snapshot => ({ day: snapshot.day, snapshot }))
 }
 
-export function totalChangeAmount(current: number | null, snapshots: Snapshot[], currency: Currency, today: string): number | null {
+export function totalChangeAmount(current: number | null, snapshots: Snapshot[], currency: Currency, rate: Rate | null, today: string): number | null {
   const yesterday = shiftDay(today, -1)
   // The home balance still compares against the last balance known yesterday.
   const previous = snapshots.filter(snapshot => snapshot.day <= yesterday)
     .sort((a, b) => a.day.localeCompare(b.day)).at(-1)
   if (current === null || !previous) return null
-  const previousTotal = convertedTotal(ordinaryTotals(previous.totals, previous.assets), currency, previous.rate)
+  // Compare balances at the same exchange rate so a rate refresh is not shown as a deposit or withdrawal.
+  const previousTotal = convertedTotal(ordinaryTotals(previous.totals, previous.assets), currency, rate)
   return previousTotal === null ? null : current - previousTotal
 }

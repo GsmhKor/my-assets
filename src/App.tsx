@@ -219,7 +219,7 @@ export default function App() {
       {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {tab === 'home' && <>
-          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} today={today}>
+          <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} rate={rate} today={today}>
             <div className={`finance-lines${currency === 'JPY' ? ' finance-lines-hidden' : ''}`} aria-hidden={currency === 'JPY'}>
               <p className="finance-line"><span className="finance-label">投资</span><b className="money">{money(investment.cash, 'CNY', 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>
               <p className="finance-line"><span className="finance-label">出借</span><b className="money">{money(lentOut, 'CNY', 0)}</b></p>
