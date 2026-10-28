@@ -192,7 +192,7 @@ export default function App() {
       const balance = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(asset.amountMinor / (asset.currency === 'JPY' ? 1 : 100))
       return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source}，${asset.currency} ${balance}`}>
         <span className="asset-copy" title={asset.source}>{asset.source}</span>
-        <span className={`asset-money money${asset.amountMinor < 0 ? ' money-down' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
+        <span className={`asset-money money${asset.amountMinor < 0 ? ' negative' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
       </button>
     })
   }
@@ -209,10 +209,10 @@ export default function App() {
         {tab === 'home' && <>
           <section className="balance-card" aria-label="当前总资产"><p className="eyebrow">我的总资产 · {currencyName(currency)}</p><TotalBalance total={total} snapshots={ledger.snapshots} currency={currency} rate={rate} today={today}>
             <div className={`finance-lines${currency === 'JPY' ? ' finance-lines-hidden' : ''}`} aria-hidden={currency === 'JPY'}>
-              <p className="finance-line"><span className="finance-label">投资</span><b className="money">{money(investment.cash, 'CNY', 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>
-              <p className="finance-line"><span className="finance-label">出借</span><b className="money">{money(lentOut, 'CNY', 0)}</b></p>
+              <p className="finance-line"><span className="finance-label">投资</span><b className={`money${investment.cash !== null && investment.cash < 0 ? ' negative' : ''}`}>{money(investment.cash, 'CNY', 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>
+              <p className="finance-line"><span className="finance-label">出借</span><b className={`money${lentOut !== null && lentOut < 0 ? ' negative' : ''}`}>{money(lentOut, 'CNY', 0)}</b></p>
             </div>
-          </TotalBalance><div className="native-totals"><div><span>日元资产</span><b className="money">{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className="money">{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
+          </TotalBalance><div className="native-totals"><div><span>日元资产</span><b className={`money${totals.JPY < 0 ? ' negative' : ''}`}>{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className={`money${totals.CNY < 0 ? ' negative' : ''}`}>{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
           <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />
           {rateError && <p className="notice small" role="status">{rateError}</p>}
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请联网后刷新。</p>}

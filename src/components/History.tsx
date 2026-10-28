@@ -82,9 +82,9 @@ export function History({ ledger, currency, today, onCorrect, onReset, busy = fa
       {points.length ? <>
         <div className="history-summaries">
         {series.map(item => <section className="history-series" aria-label={item.label} key={item.id}>
-            <div className="history-series-heading"><h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" /><span>{item.label}{item.id === 'native' && <span title="占当日同币种折算总资产的比例">({nativeShare})</span>}</span></h3><strong className="money">{money(item.last ?? null, currency, 0)}</strong></div>
+            <div className="history-series-heading"><h3><i className={`chart-swatch chart-swatch-${item.id}`} aria-hidden="true" /><span>{item.label}{item.id === 'native' && <span title="占当日同币种折算总资产的比例">({nativeShare})</span>}</span></h3><strong className={`money${item.last != null && item.last < 0 ? ' negative' : ''}`}>{money(item.last ?? null, currency, 0)}</strong></div>
             <p className="chart-change"><span>较上次记录</span><span className="chart-change-values"><strong className={`money${moneyChangeClass(item.dailyChange)}`}>{item.previous === undefined ? '暂无可比记录' : formatMoneyChange(item.dailyChange, currency, { showCurrency: false })}</strong>{item.dailyPercent !== null && <span className={`money${moneyChangeClass(item.dailyChange)}`}>（{percent(item.dailyPercent)}）</span>}{item.previous === 0 && item.dailyChange !== null && <span title="上次余额为 0，无法计算变化百分比">（上次余额为 0）</span>}</span></p>
-            <div className="chart-labels"><span>最高 {money(item.max, currency, 0)}</span><span>最低 {money(item.min, currency, 0)}</span></div>
+            <div className="chart-labels"><span className={item.max !== null && item.max < 0 ? 'negative' : undefined}>最高 {money(item.max, currency, 0)}</span><span className={item.min !== null && item.min < 0 ? 'negative' : undefined}>最低 {money(item.min, currency, 0)}</span></div>
           </section>
         )}
         </div>

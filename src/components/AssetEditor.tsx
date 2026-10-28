@@ -59,12 +59,12 @@ export function AssetEditor({ asset, history, currency: initialCurrency, rate = 
           <div className="currency-switch compact" role="group" aria-label="本笔资产币种">
             {(['JPY', 'CNY'] as const).map(value => <button key={value} type="button" disabled={Boolean(history)} aria-pressed={currency === value} className={currency === value ? 'selected' : ''} onClick={() => setCurrency(value)}>{currencyName(value)} <small>{value}</small></button>)}
           </div>
-          <label className="field amount-input">{history ? `${history.day} 的余额` : '当前余额'} · {currencyName(currency)}<input autoFocus={Boolean(history)} required inputMode="numeric" pattern="-?[0-9]+" placeholder="0" value={amount} onChange={event => setAmount(event.target.value)} aria-describedby="amount-help" /></label>
+          <label className="field amount-input">{history ? `${history.day} 的余额` : '当前余额'} · {currencyName(currency)}<input className={amount.trim().startsWith('-') ? 'negative' : undefined} autoFocus={Boolean(history)} required inputMode="numeric" pattern="-?[0-9]+" placeholder="0" value={amount} onChange={event => setAmount(event.target.value)} aria-describedby="amount-help" /></label>
           <div className="amount-tools"><button className="text-button" type="button" onClick={() => setAmount(value => value.startsWith('-') ? value.slice(1) : `-${value}`)}>切换正负 ±</button><small id="amount-help">整数{currencyName(currency)}，负数表示负债</small></div>
           {asset && !history && <div className="asset-context small muted">
             <p>上次更新：<time dateTime={asset.updatedDay}>{asset.updatedDay}</time></p>
             {previous && <p>较 {previous.day}：{change === null ? '暂无可比记录' : <span className={`money${moneyChangeClass(change)}`}>{formatMoneyChange(change, asset.currency)}（{percentLabel}）</span>}</p>}
-            {asset.currency !== initialCurrency && <p>按当前汇率折合：<span className="money">{money(converted, initialCurrency)}</span></p>}
+            {asset.currency !== initialCurrency && <p>按当前汇率折合：<span className={`money${converted !== null && converted < 0 ? ' negative' : ''}`}>{money(converted, initialCurrency)}</span></p>}
           </div>}
           {history ? <p className="editor-note">修改快照：{history.day}。保留当时汇率，重新计算该日总资产。<br />{history.affectsCurrent ? '这是最近一次快照，当前资产余额也会同步修正。' : '后续已保存的快照和当前资产余额保持不变。'}</p> : <p className="editor-note">保存日期：{localDay()}</p>}
           {error && <p className="error-message" role="alert">{error}</p>}

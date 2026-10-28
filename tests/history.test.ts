@@ -126,7 +126,7 @@ test('historical CNY change shows a 990 investment without mixing exchange rate 
     point: { day: '2026-09-18', snapshot: snapshots[1] }, previous: snapshots[0],
     currency: 'CNY', today: '2026-09-18', onCorrect: () => {}, onToggle: () => {}, open: true, busy: false,
   }))
-  assert.ok(detail.includes('总资产 <span class="money">- 990</span>'))
+  assert.ok(detail.includes('总资产 <span class="money money-down">- 990</span>'))
 })
 
 test('native share uses the latest total converted into the selected currency', () => {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Asset, Currency, HistoryPoint, Snapshot } from '../domain/ledger'
 import { convertedTotal, currencyName, money, ordinaryTotals } from '../domain/ledger'
 import { Icon } from './Icon'
-import { balanceChange, formatMoneyChange } from './balanceChange'
+import { balanceChange, formatMoneyChange, moneyChangeClass } from './balanceChange'
 
 type HistoryListProps = {
   points: HistoryPoint[]
@@ -55,8 +55,8 @@ export function HistoryDay({ point, previous, currency, today, onCorrect, busy, 
   const nativeChange = previousTotals ? totals[currency] - previousTotals[currency] : null
   const comparison = previous ? `较 ${previous.day}` : '暂无可比记录'
   return <details className="card day-card" open={open} onToggle={event => onToggle(event.currentTarget.open)}>
-      <summary><span><strong>{point.day}{point.day === today ? ' · 今天' : ''}</strong><small>当日最后保存</small></span><b className="money"><small>总资产（折算）</small><span className="money" title={totalChange !== null ? `${comparison} ${formatMoneyChange(totalChange, currency)}` : '暂无可比金额'}>{money(total, currency, 0)}</span><small className="money" title={nativeChange !== null ? `${comparison} ${formatMoneyChange(nativeChange, currency)}` : comparison}>{nativeLabel} {money(totals[currency], currency, 0)}</small></b><Icon name="chevron-right" size={17} /></summary>
-      {open && <div className="day-detail"><p className="small muted"><span className="money">日元 {money(totals.JPY, 'JPY')}</span> · <span className="money">人民币 {money(totals.CNY, 'CNY', 0)}</span></p>{previous && <p className="small muted">{comparison}：总资产 <span className="money">{formatMoneyChange(totalChange, currency, { showCurrency: false })}</span> · 实际余额 <span className="money">{formatMoneyChange(nativeChange, currency, { showCurrency: false })}</span></p>}<p className="small muted">{point.snapshot.rate ? <>
+      <summary><span><strong>{point.day}{point.day === today ? ' · 今天' : ''}</strong><small>当日最后保存</small></span><b className="money"><small>总资产（折算）</small><span className={`money${total !== null && total < 0 ? ' negative' : ''}`} title={totalChange !== null ? `${comparison} ${formatMoneyChange(totalChange, currency)}` : '暂无可比金额'}>{money(total, currency, 0)}</span><small className={`money${totals[currency] < 0 ? ' negative' : ''}`} title={nativeChange !== null ? `${comparison} ${formatMoneyChange(nativeChange, currency)}` : comparison}>{nativeLabel} {money(totals[currency], currency, 0)}</small></b><Icon name="chevron-right" size={17} /></summary>
+      {open && <div className="day-detail"><p className="small muted"><span className={`money${totals.JPY < 0 ? ' negative' : ''}`}>日元 {money(totals.JPY, 'JPY')}</span> · <span className={`money${totals.CNY < 0 ? ' negative' : ''}`}>人民币 {money(totals.CNY, 'CNY', 0)}</span></p>{previous && <p className="small muted">{comparison}：总资产 <span className={`money${moneyChangeClass(totalChange)}`}>{formatMoneyChange(totalChange, currency, { showCurrency: false })}</span> · 实际余额 <span className={`money${moneyChangeClass(nativeChange)}`}>{formatMoneyChange(nativeChange, currency, { showCurrency: false })}</span></p>}<p className="small muted">{point.snapshot.rate ? <>
         快照汇率<br />
         1 CNY = {point.snapshot.rate.cnyToJpy.toFixed(2)} JPY<br />
         10000 JPY = {(10000 / point.snapshot.rate.cnyToJpy).toFixed(2)} CNY<br />
@@ -64,7 +64,7 @@ export function HistoryDay({ point, previous, currency, today, onCorrect, busy, 
       </> : '此快照没有汇率，跨币种总额暂不可用。'}</p>
         {point.snapshot.assets.map(asset => {
           const change = balanceChange(asset, previous)
-          return <div className="snapshot-row" key={asset.id}><span>{asset.source}<small className="money" title={change !== null ? `${comparison} ${formatMoneyChange(change, asset.currency)}` : '暂无可比记录'}>{money(asset.amountMinor, asset.currency)}</small></span><button className="text-button" disabled={busy} onClick={() => onCorrect(point.snapshot.day, asset)} aria-label={`修改 ${point.snapshot.day} 快照中 ${asset.source} 的金额`}>修改历史金额</button></div>
+          return <div className="snapshot-row" key={asset.id}><span>{asset.source}<small className={`money${asset.amountMinor < 0 ? ' negative' : ''}`} title={change !== null ? `${comparison} ${formatMoneyChange(change, asset.currency)}` : '暂无可比记录'}>{money(asset.amountMinor, asset.currency)}</small></span><button className="text-button" disabled={busy} onClick={() => onCorrect(point.snapshot.day, asset)} aria-label={`修改 ${point.snapshot.day} 快照中 ${asset.source} 的金额`}>修改历史金额</button></div>
         })}
         {!point.snapshot.assets.length && <p className="small muted">当日没有持有资产。</p>}
       </div>}
