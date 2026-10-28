@@ -194,7 +194,7 @@ export default function App() {
       const balance = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(asset.amountMinor / (asset.currency === 'JPY' ? 1 : 100))
       return <button className="asset-row" key={asset.id} disabled={busy} onClick={() => edit(asset)} aria-label={`编辑 ${asset.source}，${asset.currency} ${balance}，变化${change === null ? '暂无记录' : formatMoneyChange(change, asset.currency)}`}>
         <span className="asset-copy" title={asset.source}>{asset.source}</span>
-        <span className={`asset-money money${asset.amountMinor < 0 ? ' negative' : ''}`}>{asset.currency}{'\u00a0'}{balance}</span>
+        <span className="asset-money money">{asset.currency}{'\u00a0'}{balance}</span>
         <span className={`asset-delta money${moneyChangeClass(change)}`} title={previous ? `较 ${previous.day} ${change === null ? '暂无可比记录' : formatMoneyChange(change, asset.currency)}` : '暂无可比记录'}>{change === null ? '0' : formatMoneyChange(change, asset.currency, { showCurrency: false })}</span>
       </button>
     })
