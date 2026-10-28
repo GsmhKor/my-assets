@@ -63,7 +63,7 @@ export function HistoryDay({ point, previous, currency, today, currentRate, onCo
         1 CNY = {displayRate.cnyToJpy.toFixed(2)} JPY<br />
         10000 JPY = {(10000 / displayRate.cnyToJpy).toFixed(2)} CNY<br />
         （{displayRate.date} · {displayRate.source}）
-      </> : '此快照没有汇率，跨币种总额暂不可用。'}</p>
+      </> : point.day === today && currentRate !== undefined ? '当前没有汇率，跨币种总额暂不可用。' : '此快照没有汇率，跨币种总额暂不可用。'}</p>
         {point.snapshot.assets.map(asset => {
           const change = balanceChange(asset, previous)
           return <div className="snapshot-row" key={asset.id}><span>{asset.source}<small className={`money${asset.amountMinor < 0 ? ' negative' : ''}`} title={change !== null ? `${comparison} ${formatMoneyChange(change, asset.currency)}` : '暂无可比记录'}>{money(asset.amountMinor, asset.currency)}</small></span><button className="text-button" disabled={busy} onClick={() => onCorrect(point.snapshot.day, asset)} aria-label={`修改 ${point.snapshot.day} 快照中 ${asset.source} 的金额`}>修改历史金额</button></div>
