@@ -1,17 +1,17 @@
 import { useMemo } from 'react'
-import type { Asset, Currency, Ledger } from '../domain/ledger'
-import { convertedTotal, historyBetween, money, ordinaryTotals } from '../domain/ledger'
+import type { Asset, Currency, Ledger, Rate } from '../domain/ledger'
+import { convertedTotal, historyBetween, historyDisplayRate, money, ordinaryTotals } from '../domain/ledger'
 import { HistoryList } from './HistoryList'
 import { formatMoneyChange, moneyChangeClass } from './balanceChange'
 import { historyScale } from './historyScale'
 
 const percent = (value: number) => `${value > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}%`
 
-export function History({ ledger, currency, today, onCorrect, onReset, busy = false }: { ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; onReset: () => void; busy?: boolean }) {
+export function History({ ledger, currency, today, currentRate, onCorrect, onReset, busy = false }: { ledger: Ledger; currency: Currency; today: string; currentRate?: Rate | null; onCorrect: (day: string, asset: Asset) => void; onReset: () => void; busy?: boolean }) {
   const from = ledger.snapshots[0]?.day ?? today
   const points = useMemo(() => historyBetween(ledger.snapshots, from, today), [ledger.snapshots, from, today])
   const pointTotals = points.map(point => ordinaryTotals(point.snapshot.totals, point.snapshot.assets))
-  const amounts = points.map((point, index) => convertedTotal(pointTotals[index], currency, point.snapshot.rate))
+  const amounts = points.map((point, index) => convertedTotal(pointTotals[index], currency, historyDisplayRate(point.snapshot, today, currentRate)))
   const nativeAmounts = pointTotals.map(totals => totals[currency])
   const nativeLabel = '实际资产'
   const latestTotal = amounts.at(-1)
@@ -20,12 +20,12 @@ export function History({ ledger, currency, today, onCorrect, onReset, busy = fa
     ? `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(latestNative / latestTotal * 100)}%`
     : '—'
   const series = [
-    { id: 'total', label: '总资产（折算）', amounts },
+    { id: 'total', label: '总资产', amounts },
     { id: 'native', label: nativeLabel, amounts: nativeAmounts },
   ].map(item => {
     const last = item.amounts.at(-1)
     const previous = item.id === 'total' && pointTotals.length > 1
-      ? convertedTotal(pointTotals[pointTotals.length - 2], currency, points.at(-1)?.snapshot.rate ?? null)
+      ? convertedTotal(pointTotals[pointTotals.length - 2], currency, historyDisplayRate(points.at(-1)!.snapshot, today, currentRate))
       : item.amounts.at(-2)
     const dailyChange = previous != null && last != null ? last - previous : null
     const dailyPercent = dailyChange !== null && previous != null && previous !== 0 ? dailyChange / Math.abs(previous) * 100 : null
@@ -105,6 +105,6 @@ export function History({ ledger, currency, today, onCorrect, onReset, busy = fa
         {amounts.some(amount => amount === null) && <p className="small muted chart-note">缺少汇率的日期不绘制折算总资产数据，实际余额不受影响。</p>}
       </> : <p className="empty-copy">还没有资产记录。首次保存后会从记录当天开始展示历史。</p>}
     </section>
-    <HistoryList points={points} currency={currency} today={today} onCorrect={onCorrect} busy={busy} />
+    <HistoryList points={points} currency={currency} today={today} currentRate={currentRate} onCorrect={onCorrect} busy={busy} />
   </>
 }

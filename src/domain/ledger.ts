@@ -149,6 +149,9 @@ export function removeAsset(ledger: Ledger, id: string, rate: Rate | null, now =
   return recordSnapshot(ledger, ledger.assets.filter(asset => asset.id !== id), rate, now)
 }
 export interface HistoryPoint { day: string; snapshot: Snapshot }
+export function historyDisplayRate(snapshot: Snapshot, today: string, currentRate?: Rate | null): Rate | null {
+  return snapshot.day === today && currentRate !== undefined ? currentRate : snapshot.rate
+}
 export function correctSnapshotAmount(ledger: Ledger, day: string, assetId: string, amount: string, now = new Date()): Ledger {
   if (!validDay(day) || day > localDay(now)) throw new Error('请选择今天或之前的快照日期。')
   const snapshot = ledger.snapshots.find(item => item.day === day)

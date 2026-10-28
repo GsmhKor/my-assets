@@ -266,7 +266,7 @@ export default function App() {
           <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><button type="button" className="asset-sort-toggle" aria-label={`当前按名称拼音${assetSort === 'asc' ? '升序' : '降序'}，点击切换为${assetSort === 'asc' ? '降序' : '升序'}`} title="按名称拼音排序" onClick={() => { const next = assetSort === 'asc' ? 'desc' : 'asc'; setAssetSort(next); remember('asset-sort', next) }}>{assetSort === 'asc' ? '升序' : '降序'}</button></div>
           <section className={`card assets-list${visibleAssets.length ? ' assets-list-filled' : ''}`}>{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>从第一份资产开始</h2><p>点击右下角猫咪，填写来源和当前余额。</p><button className="text-button" onClick={() => edit()}>记录资产</button></div>}</section>
         </>}
-        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} onCorrect={correctHistorical} onReset={() => void resetHistorical()} busy={busy} />}
+        {tab === 'history' && <History ledger={ledger} currency={currency} today={today} currentRate={rate} onCorrect={correctHistorical} onReset={() => void resetHistorical()} busy={busy} />}
         {tab === 'settings' && <>
           <div className="section-heading"><h1>设置</h1></div>
           <div className="settings-grid">

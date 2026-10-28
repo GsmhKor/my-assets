@@ -10,7 +10,7 @@ import { money } from '../src/domain/ledger.ts'
 import { historyScale } from '../src/components/historyScale.ts'
 
 let server: ViteDevServer
-let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; onCorrect: (day: string, asset: Asset) => void; onReset: () => void; busy?: boolean }>
+let History: ComponentType<{ ledger: Ledger; currency: Currency; today: string; currentRate?: Rate | null; onCorrect: (day: string, asset: Asset) => void; onReset: () => void; busy?: boolean }>
 let AssetEditor: typeof import('../src/components/AssetEditor.tsx').AssetEditor
 let HistoryDay: typeof import('../src/components/HistoryList.tsx').HistoryDay
 before(async () => {
@@ -23,8 +23,8 @@ after(async () => { await server?.close() })
 
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-16', fetchedAt: '2026-09-16T00:00:00Z', source: 'Frankfurter' }
 const snapshot = (day: string, totals: Totals, savedRate: Rate | null = rate): Snapshot => ({ day, savedAt: day + 'T00:00:00Z', assets: [], totals, rate: savedRate })
-const render = (snapshots: Snapshot[], currency: Currency = 'JPY') => renderToStaticMarkup(createElement(History, {
-  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', onCorrect: () => {}, onReset: () => {},
+const render = (snapshots: Snapshot[], currency: Currency = 'JPY', currentRate?: Rate | null) => renderToStaticMarkup(createElement(History, {
+  ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', currentRate, onCorrect: () => {}, onReset: () => {},
 }))
 const panels = (html: string) => [...html.matchAll(/<section class="history-series"[^>]*>(.*?)<\/section>/gs)].map(match => match[1])
 const line = (html: string, id: string) => html.match(new RegExp('d="([^"]*)" class="chart-line chart-line-' + id + '"'))?.[1]
@@ -44,6 +44,7 @@ test('history skips unsaved days, spaces saved records equally, and hides x-axis
     assert.deepEqual(curvePoints(html, id).map(point => point.x), [56, 182, 308])
   }
   assert.ok(!html.includes('共 3 天'))
+  assert.ok(!html.includes('总资产（折算）'))
   assert.match(html, /<button type="button" class="text-button history-reset">重置<\/button>/)
   assert.ok(html.includes('较上次记录'))
   assert.ok(!html.includes('较昨日变化'))
@@ -60,6 +61,33 @@ test('history skips unsaved days, spaces saved records equally, and hides x-axis
   assert.equal(curvePoints(single, 'total').length, 1)
   assert.ok(panels(single)[0].includes('暂无可比记录'))
   assert.match(render([]), /class="text-button history-reset" disabled=""/)
+})
+
+test('today history chart, card and details use the same current rate as home while older snapshots keep saved rates', () => {
+  const currentRate = { ...rate, cnyToJpy: 21 }
+  const snapshots = [
+    snapshot('2026-09-17', { JPY: 20_000, CNY: 50_000 }),
+    snapshot('2026-09-18', { JPY: 21_000, CNY: 100_000 }),
+  ]
+  const html = render(snapshots, 'CNY', currentRate)
+  const currentAmount = money(200_000, 'CNY', 0)
+  assert.ok(panels(html)[0].includes(currentAmount))
+  assert.ok(html.includes(`<small>总资产</small><span class="money"`))
+  assert.ok(!html.includes('总资产（折算）'))
+  const todayDetail = renderToStaticMarkup(createElement(HistoryDay, {
+    point: { day: '2026-09-18', snapshot: snapshots[1] }, previous: snapshots[0],
+    currency: 'CNY', today: '2026-09-18', currentRate, onCorrect: () => {}, onToggle: () => {}, open: true, busy: false,
+  }))
+  assert.ok(todayDetail.includes(currentAmount))
+  assert.ok(todayDetail.includes('当前汇率'))
+  assert.ok(todayDetail.includes('1 CNY = 21.00 JPY'))
+  const oldDetail = renderToStaticMarkup(createElement(HistoryDay, {
+    point: { day: '2026-09-17', snapshot: snapshots[0] },
+    currency: 'CNY', today: '2026-09-18', currentRate, onCorrect: () => {}, onToggle: () => {}, open: true, busy: false,
+  }))
+  assert.ok(oldDetail.includes('快照汇率'))
+  assert.ok(oldDetail.includes('1 CNY = 20.00 JPY'))
+  assert.ok(oldDetail.includes(money(150_000, 'CNY', 0)))
 })
 
 test('investment rows remain in history details while both chart series exclude their balances', () => {
