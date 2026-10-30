@@ -20,14 +20,14 @@ test('rejects future dates, invalid currencies and invalid rates', () => {
   assert.deepEqual(recentRatePoints([{ day: '2026-09-27', cny: NaN }, { day: '2026-09-28', cny: 500 }], '2026-09-27'), [])
 })
 
-test('snapshot fallback uses saved rates and snapshot dates, omits missing rates and preserves the ledger', () => {
+test('snapshot fallback uses actual quote dates, omits missing rates and preserves the ledger', () => {
   const rate = { cnyToJpy: 20, date: '2026-09-25', fetchedAt: now.toISOString(), source: '手动' as const }
   const snapshots: Snapshot[] = [
     { day: '2026-09-26', savedAt: now.toISOString(), assets: [], totals: { JPY: 0, CNY: 0 }, rate },
     { day: '2026-09-27', savedAt: now.toISOString(), assets: [], totals: { JPY: 0, CNY: 0 }, rate: null },
   ]
   const original = structuredClone(snapshots)
-  assert.deepEqual(snapshotRatePoints(snapshots, '2026-09-27'), [{ day: '2026-09-26', cny: 500 }])
+  assert.deepEqual(snapshotRatePoints(snapshots, '2026-09-27'), [{ day: '2026-09-25', cny: 500 }])
   assert.deepEqual(snapshots, original)
 })
 

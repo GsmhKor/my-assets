@@ -34,12 +34,14 @@ export function parseBackup(text: string, today = localDay()): Ledger {
     previousDay = s.day
     assert(timestamp(s.savedAt))
     assert(s.rate === null || (validRate(s.rate) && s.rate.date <= s.day))
+    assert(s.rateFinalized === undefined || typeof s.rateFinalized === 'boolean')
+    assert(s.rateFinalized !== true || s.rate === null || s.rate.date === s.day, '已固定的历史汇率必须与快照日期一致。')
     const rows = assets(s.assets, s.day)
     const computed = sumAssets(rows); const saved = object(s.totals)
     assert(saved.JPY === computed.JPY && saved.CNY === computed.CNY, '快照总额与资产明细不一致。')
     const rate = s.rate === null ? null : { ...s.rate }
     convertedTotal(computed, 'JPY', rate); convertedTotal(computed, 'CNY', rate)
-    return { day: s.day, savedAt: s.savedAt, assets: rows, totals: computed, rate }
+    return { day: s.day, savedAt: s.savedAt, assets: rows, totals: computed, rate, ...(typeof s.rateFinalized === 'boolean' ? { rateFinalized: s.rateFinalized } : {}) }
   })
   const current = assets(data.assets, today)
   assert(snapshots.length > 0 || current.length === 0)

@@ -22,7 +22,7 @@ before(async () => {
 after(async () => { await server?.close() })
 
 const rate: Rate = { cnyToJpy: 20, date: '2026-09-16', fetchedAt: '2026-09-16T00:00:00Z', source: 'Frankfurter' }
-const snapshot = (day: string, totals: Totals, savedRate: Rate | null = rate): Snapshot => ({ day, savedAt: day + 'T00:00:00Z', assets: [], totals, rate: savedRate })
+const snapshot = (day: string, totals: Totals, savedRate: Rate | null = { ...rate, date: day }): Snapshot => ({ day, savedAt: day + 'T00:00:00Z', assets: [], totals, rate: savedRate })
 const render = (snapshots: Snapshot[], currency: Currency = 'JPY', currentRate?: Rate | null) => renderToStaticMarkup(createElement(History, {
   ledger: { revision: 1, assets: [], snapshots }, currency, today: '2026-09-18', currentRate, onCorrect: () => {}, onReset: () => {},
 }))
@@ -146,7 +146,7 @@ test('both currencies use actual amounts, with daily changes above a single char
 test('historical CNY change shows a 990 investment without mixing exchange rate movement', () => {
   const snapshots = [
     snapshot('2026-09-17', { JPY: 20000, CNY: 1_000_000 }),
-    snapshot('2026-09-18', { JPY: 20000, CNY: 901_000 }, { ...rate, cnyToJpy: 21 }),
+    snapshot('2026-09-18', { JPY: 20000, CNY: 901_000 }, { ...rate, date: '2026-09-18', cnyToJpy: 21 }),
   ]
   const html = render(snapshots, 'CNY')
   assert.ok(panels(html)[0].includes('>- 990</strong>'))
@@ -155,6 +155,23 @@ test('historical CNY change shows a 990 investment without mixing exchange rate 
     currency: 'CNY', today: '2026-09-18', onCorrect: () => {}, onToggle: () => {}, open: true, busy: false,
   }))
   assert.ok(detail.includes('总资产 <span class="money money-down">- 990</span>'))
+})
+
+test('past dates never borrow a current or earlier quote when their own daily quote is missing', () => {
+  for (const date of ['2026-09-16', '2026-09-18']) {
+    const saved = snapshot('2026-09-17', { JPY: 1000, CNY: 10000 }, { ...rate, date })
+    const currentRate = { ...rate, date: '2026-09-18', cnyToJpy: 25 }
+    const html = render([saved], 'JPY', currentRate)
+    assert.equal(curvePoints(html, 'total').length, 0)
+    assert.equal(curvePoints(html, 'native').length, 1)
+    const detail = renderToStaticMarkup(createElement(HistoryDay, {
+      point: { day: saved.day, snapshot: saved }, currency: 'JPY', today: '2026-09-18', currentRate,
+      onCorrect: () => {}, onToggle: () => {}, open: true, busy: false,
+    }))
+    assert.ok(detail.includes('待汇率'))
+    assert.ok(detail.includes('此快照没有当日报价'))
+    assert.ok(!detail.includes('1 CNY ='))
+  }
 })
 
 test('native share uses the latest total converted into the selected currency', () => {

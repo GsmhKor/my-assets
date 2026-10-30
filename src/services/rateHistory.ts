@@ -18,7 +18,7 @@ export function recentRatePoints(points: readonly RatePoint[], today: string): R
 
 export function snapshotRatePoints(snapshots: readonly Snapshot[], today: string): RatePoint[] {
   return recentRatePoints(snapshots.flatMap(snapshot => validRate(snapshot.rate) && snapshot.rate.date <= snapshot.day
-    ? [{ day: snapshot.day, cny: 10000 / snapshot.rate.cnyToJpy }] : []), today)
+    ? [{ day: snapshot.rate.date, cny: 10000 / snapshot.rate.cnyToJpy }] : []), today)
 }
 
 export function parseRateHistory(value: unknown, now = new Date()): RatePoint[] {

@@ -20,6 +20,7 @@ export interface Snapshot {
   assets: Asset[]
   totals: Totals
   rate: Rate | null
+  rateFinalized?: boolean
 }
 export interface Ledger {
   revision: number
@@ -124,11 +125,37 @@ export function recordSnapshot(ledger: Ledger, assets: Asset[], rate: Rate | nul
   const day = localDay(now)
   if (ledger.snapshots.some(snapshot => snapshot.day > day)) throw new Error('设备日期早于已有记录，请先校正设备日期。')
   if (rate && (!validRate(rate) || rate.date > day)) throw new Error('汇率日期或数值无效，请刷新汇率。')
+  const snapshotRate = rate?.date === day ? rate : null
   const totals = sumAssets(assets)
-  convertedTotal(totals, 'JPY', rate)
-  convertedTotal(totals, 'CNY', rate)
-  const snapshot: Snapshot = { day, savedAt: now.toISOString(), assets: structuredClone(assets), totals, rate: rate ? { ...rate } : null }
+  convertedTotal(totals, 'JPY', snapshotRate)
+  convertedTotal(totals, 'CNY', snapshotRate)
+  const snapshot: Snapshot = { day, savedAt: now.toISOString(), assets: structuredClone(assets), totals, rate: snapshotRate ? { ...snapshotRate } : null, rateFinalized: false }
   return { revision: ledger.revision + 1, assets, snapshots: [...ledger.snapshots.filter(item => item.day !== day), snapshot] }
+}
+// A check is idempotent: keep one record per local day and do not invent missed days.
+export function ensureDailySnapshot(ledger: Ledger, rate: Rate | null, now = new Date()): Ledger {
+  const day = localDay(now)
+  const latest = ledger.snapshots.at(-1)
+  if (!latest && !ledger.assets.length) return ledger
+  if (latest && latest.day > day) throw new Error('设备日期早于已有记录，请先校正设备日期。')
+  const usable = rate && validRate(rate) && rate.date === day ? rate : null
+  if (latest?.day !== day) return recordSnapshot(ledger, ledger.assets, usable, now)
+  // Never replace a newer saved quote with a stale cache or a failed request.
+  if (!usable || (latest.rate && (usable.date < latest.rate.date
+    || (usable.date === latest.rate.date && Date.parse(usable.fetchedAt) < Date.parse(latest.rate.fetchedAt))))) return ledger
+  if (latest.rate?.date === usable.date && latest.rate.cnyToJpy === usable.cnyToJpy && latest.rate.source === usable.source) return ledger
+  return recordSnapshot(ledger, ledger.assets, usable, now)
+}
+export function finalizeSnapshotRate(ledger: Ledger, day: string, rate: Rate | null, now = new Date()): Ledger {
+  if (!validDay(day) || day >= localDay(now) || (rate !== null && (!validRate(rate) || rate.date !== day))) throw new Error('历史汇率必须与快照日期一致。')
+  const snapshot = ledger.snapshots.find(item => item.day === day)
+  if (!snapshot || snapshot.rateFinalized || snapshot.rate?.source === '手动') return ledger
+  const finalized = rate !== null || day < shiftDay(localDay(now), -1)
+  if (rate === null && snapshot.rate === null && snapshot.rateFinalized === finalized) return ledger
+  // Only an as-of-date lookup can finalize a past quote; balances and savedAt stay intact.
+  // No same-day quote means no historical conversion. Retry yesterday's missing
+  // quote in case publication is delayed; do not borrow another day's quote.
+  return { ...ledger, revision: ledger.revision + 1, snapshots: ledger.snapshots.map(item => item.day === day ? { ...item, rate: rate ? { ...rate } : null, rateFinalized: finalized } : item) }
 }
 export function resetHistory(ledger: Ledger, rate: Rate | null, now = new Date()): Ledger {
   // Keep current balances and replace every old snapshot with today's baseline.
@@ -150,7 +177,9 @@ export function removeAsset(ledger: Ledger, id: string, rate: Rate | null, now =
 }
 export interface HistoryPoint { day: string; snapshot: Snapshot }
 export function historyDisplayRate(snapshot: Snapshot, today: string, currentRate?: Rate | null): Rate | null {
-  return snapshot.day === today && currentRate !== undefined ? currentRate : snapshot.rate
+  const live = snapshot.day === today && currentRate !== undefined
+  const rate = live ? currentRate : snapshot.rate
+  return validRate(rate) && (live ? rate.date <= snapshot.day : rate.date === snapshot.day) ? rate : null
 }
 export function correctSnapshotAmount(ledger: Ledger, day: string, assetId: string, amount: string, now = new Date()): Ledger {
   if (!validDay(day) || day > localDay(now)) throw new Error('请选择今天或之前的快照日期。')

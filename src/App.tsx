@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
@@ -11,7 +11,8 @@ import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
 import { assetSortPreference, sortAssets } from './domain/assetSort'
 import type { AssetSortOrder } from './domain/assetSort'
 import { changeLedger, readLedger } from './services/database'
-import { cachedRate, cacheRate, fetchRate } from './services/rates'
+import { cachedRate, cacheRate, fetchHistoricalRate, refreshCurrentRate } from './services/rates'
+import { createSnapshotCheck } from './services/snapshotCheck'
 import { downloadBackup, parseBackup } from './services/backup'
 import { activateAppUpdate, checkForAppUpdate } from './services/appUpdate'
 import homeCat from './assets/cat-tab-home.png'
@@ -36,11 +37,16 @@ export default function App() {
   const [currency, setCurrency] = useState<Currency>(() => preference('currency', 'JPY') === 'CNY' ? 'CNY' : 'JPY')
   const [dark, setDark] = useState(() => preference('theme', 'dark') === 'dark')
   const [rate, setRate] = useState<Rate | null>(cachedRate)
+  const rateRef = useRef(rate)
+  rateRef.current = rate
   const [rateBusy, setRateBusy] = useState(false)
   const ratePending = useRef(false)
   const [rateError, setRateError] = useState('')
   const [today, setToday] = useState(localDay)
   const [editor, setEditor] = useState<{ asset?: Asset; revision: number; history?: { day: string; affectsCurrent: boolean } } | null>(null)
+  const editorRef = useRef(editor)
+  editorRef.current = editor
+  const [snapshotError, setSnapshotError] = useState('')
   const [saving, setBusy] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
@@ -141,7 +147,12 @@ export default function App() {
     }
   }
   const reload = useCallback(async () => {
-    try { const value = await readLedger(); ledgerRef.current = value; setLedger(value); setLoadError('') }
+    try {
+      const value = await readLedger()
+      // A foreground read can finish after a background snapshot transaction.
+      if (!ledgerRef.current || value.revision >= ledgerRef.current.revision) { ledgerRef.current = value; setLedger(value) }
+      setLoadError('')
+    }
     catch { setLoadError('无法读取本地资产。请重试；已有数据不会被清空。') }
   }, [])
   const mutate = useCallback(async (transform: (value: Ledger) => Ledger, revision = ledgerRef.current?.revision) => {
@@ -150,9 +161,23 @@ export default function App() {
     try {
       const value = await changeLedger(revision, transform)
       ledgerRef.current = value; setLedger(value); setToday(localDay()); channel.current?.postMessage('changed')
+      return value
     } catch (error) { await reload(); throw error }
     finally { mutationPending.current = false; setBusy(false) }
   }, [reload])
+  const checkSnapshots = useMemo(() => createSnapshotCheck({
+    read: readLedger,
+    change: mutate,
+    rate: () => rateRef.current,
+    canWrite: () => !!ledgerRef.current && !document.hidden && !editorRef.current && !mutationPending.current && !updatePending.current,
+    fetchHistoricalRate,
+  }), [mutate])
+  const checkDaily = useCallback(async (retryHistory = false) => {
+    setToday(localDay())
+    try { if (await checkSnapshots(retryHistory)) setSnapshotError('') }
+    catch (error) { setSnapshotError(`快照检查未完成：${errorText(error)} 将自动重试。`) }
+  }, [checkSnapshots])
+  useEffect(() => { if (ledger && !editor && !busy) void checkDaily() }, [ledger, rate, editor, busy, checkDaily])
   useEffect(() => { void reload() }, [reload])
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return
@@ -161,28 +186,29 @@ export default function App() {
     return () => { instance.close(); channel.current = null }
   }, [reload])
   const refreshRate = useCallback(async (syncToday = false) => {
-    if (ratePending.current || mutationPending.current) return
+    if (ratePending.current) return
     ratePending.current = true; setRateBusy(true)
     try {
-      let next: Rate
-      try { next = await fetchRate() }
-      catch (error) { setRateError(`汇率更新失败：${errorText(error)} 有缓存时继续使用上次汇率，请稍后刷新。`); return }
-      if (syncToday && ledgerRef.current?.snapshots.length) {
-        try { await mutate(value => recordSnapshot(value, value.assets, next)) }
-        catch (error) { setRateError(`刷新未完成，今日历史未更新：${errorText(error)}`); return }
-      }
-      cacheRate(next); setRate(next); setRateError(''); setToday(localDay())
-    }
+      const result = await refreshCurrentRate({
+        apply: next => { cacheRate(next); rateRef.current = next; setRate(next); setRateError(''); setToday(localDay()) },
+        syncSnapshot: syncToday && ledgerRef.current?.snapshots.length ? async next => {
+          // The automatic check retries after editing or another write finishes.
+          if (editorRef.current || mutationPending.current || updatePending.current) return
+          await mutate(value => recordSnapshot(value, value.assets, next))
+        } : undefined,
+      })
+      if ('snapshotError' in result) setRateError(`汇率已更新，今日快照暂未同步：${errorText(result.snapshotError)} 将自动重试。`)
+    } catch (error) { setRateError(`汇率更新失败：${errorText(error)} 有缓存时继续使用上次汇率，请稍后刷新。`) }
     finally { ratePending.current = false; setRateBusy(false) }
   }, [mutate])
   useEffect(() => {
     void refreshRate()
-    const foreground = () => { setToday(localDay()); if (!document.hidden) { void reload(); void refreshRate() } }
-    const clock = window.setInterval(() => setToday(localDay()), 30000)
+    const foreground = () => { if (!document.hidden) { void reload(); void checkDaily(true); void refreshRate() } }
+    const clock = window.setInterval(() => { void checkDaily() }, 30000)
     const interval = window.setInterval(() => { if (!document.hidden) void refreshRate() }, 15 * 60000)
-    document.addEventListener('visibilitychange', foreground); window.addEventListener('online', foreground)
-    return () => { clearInterval(clock); clearInterval(interval); document.removeEventListener('visibilitychange', foreground); window.removeEventListener('online', foreground) }
-  }, [refreshRate, reload])
+    document.addEventListener('visibilitychange', foreground); window.addEventListener('online', foreground); window.addEventListener('pageshow', foreground)
+    return () => { clearInterval(clock); clearInterval(interval); document.removeEventListener('visibilitychange', foreground); window.removeEventListener('online', foreground); window.removeEventListener('pageshow', foreground) }
+  }, [refreshRate, reload, checkDaily])
   useEffect(() => { remember('currency', currency) }, [currency])
   useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; remember('theme', dark ? 'dark' : 'light') }, [dark])
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
@@ -249,6 +275,7 @@ export default function App() {
           {tab !== 'settings' && <button type="button" className="local-badge currency-toggle" aria-label={`当前币种：${currencyName(currency)}，点击切换为${currencyName(currency === 'JPY' ? 'CNY' : 'JPY')}`} title="切换登记与统计币种" onClick={() => setCurrency(value => value === 'JPY' ? 'CNY' : 'JPY')}>{currencyName(currency)}</button>}
         </div>
       </header>
+      {snapshotError && <p className="notice small" role="status">{snapshotError}</p>}
       {(needRefresh || activatedUpdate) && !editor && <div className="notice app-update" aria-busy={updating}><span role="status">{updateError || (updating ? '正在应用新版本…' : saving ? '正在保存，请稍候…' : '新版本已就绪')}</span><button type="button" className="text-button" disabled={busy} onClick={() => void updateApp()}>{updating ? '正在更新…' : updateError ? '重试更新' : '更新应用'}</button></div>}
       {loadError ? <div className="card error-message" role="alert">{loadError}<button className="primary-button" onClick={() => void reload()}>重新读取</button></div> : !ledger ? <p className="empty-copy" role="status">正在打开资金账本…</p> : <>
         {tab === 'home' && <>

@@ -23,6 +23,7 @@ export async function changeLedger(expectedRevision: number, transform: (ledger:
     const current: Ledger = (await tx.store.get('ledger')) ?? structuredClone(EMPTY_LEDGER)
     if (current.revision !== expectedRevision) throw new Error('数据已在另一个窗口更新，请重新打开记录后保存。')
     const next = transform(current)
+    if (next === current) { await tx.done; return current }
     next.revision = current.revision + 1
     await tx.store.put(next, 'ledger')
     await tx.done

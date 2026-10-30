@@ -211,7 +211,7 @@ test('refreshing a rate replaces only today and keeps current balances unchanged
 test('refreshing on a new day saves today without filling gaps or repricing older records', () => {
   const original = create()
   const third = new Date(2026, 8, 17, 12)
-  const refreshed = recordSnapshot(original, original.assets, { ...rate, cnyToJpy: 21, fetchedAt: third.toISOString() }, third)
+  const refreshed = recordSnapshot(original, original.assets, { ...rate, date: '2026-09-17', cnyToJpy: 21, fetchedAt: third.toISOString() }, third)
   const points = historyBetween(refreshed.snapshots, '2026-09-15', '2026-09-17')
   assert.deepEqual(points.map(point => point.snapshot.rate?.cnyToJpy), [20, 21])
   assert.deepEqual(points.map(point => point.day), ['2026-09-15', '2026-09-17'])

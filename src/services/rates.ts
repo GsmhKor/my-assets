@@ -1,4 +1,4 @@
-import { localDay, validRate } from '../domain/ledger.ts'
+import { localDay, validDay, validRate } from '../domain/ledger.ts'
 import type { Rate } from '../domain/ledger.ts'
 const CACHE_KEY = 'my-assets-rate'
 class FutureRateDateError extends Error {}
@@ -42,4 +42,25 @@ export async function fetchRate(): Promise<Rate> {
     // Ask the provider for today's quote without rewriting its reported date.
     return requestRate(`${endpoint}?date=${localDay()}`)
   }
+}
+export async function fetchHistoricalRate(day: string): Promise<Rate | null> {
+  if (!validDay(day) || day >= localDay()) throw new Error('请选择今天之前的历史汇率日期。')
+  const rate = await requestRate(`https://api.frankfurter.dev/v2/rate/CNY/JPY?date=${day}`)
+  // Validate against the requested day, not just the device's current date.
+  if (rate.date > day) throw new Error(`历史汇率日期 ${rate.date} 晚于快照日期 ${day}，暂不采用。`)
+  return rate.date === day ? rate : null
+}
+
+export async function refreshCurrentRate(options: {
+  apply: (rate: Rate) => void
+  syncSnapshot?: (rate: Rate) => Promise<void>
+}): Promise<{ snapshotError?: unknown }> {
+  const next = await fetchRate()
+  // A valid current quote must not be lost if a separate snapshot write fails.
+  options.apply(next)
+  if (options.syncSnapshot) {
+    try { await options.syncSnapshot(next) }
+    catch (snapshotError) { return { snapshotError } }
+  }
+  return {}
 }
