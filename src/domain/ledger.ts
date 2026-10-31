@@ -1,3 +1,6 @@
+import { recordAssetActivity, resolveAssetActivity } from './assetActivity.ts'
+import type { AssetActivity } from './assetActivity.ts'
+
 export type Currency = 'JPY' | 'CNY'
 export interface Rate {
   cnyToJpy: number
@@ -26,6 +29,7 @@ export interface Ledger {
   revision: number
   assets: Asset[]
   snapshots: Snapshot[]
+  assetActivity?: Record<string, AssetActivity>
 }
 export interface Draft { id?: string; source: string; currency: Currency; amount: string }
 export const EMPTY_LEDGER: Ledger = { revision: 0, assets: [], snapshots: [] }
@@ -130,7 +134,7 @@ export function recordSnapshot(ledger: Ledger, assets: Asset[], rate: Rate | nul
   convertedTotal(totals, 'JPY', snapshotRate)
   convertedTotal(totals, 'CNY', snapshotRate)
   const snapshot: Snapshot = { day, savedAt: now.toISOString(), assets: structuredClone(assets), totals, rate: snapshotRate ? { ...snapshotRate } : null, rateFinalized: false }
-  return { revision: ledger.revision + 1, assets, snapshots: [...ledger.snapshots.filter(item => item.day !== day), snapshot] }
+  return { ...ledger, revision: ledger.revision + 1, assets, assetActivity: resolveAssetActivity({ ...ledger, assets }, day), snapshots: [...ledger.snapshots.filter(item => item.day !== day), snapshot] }
 }
 // A check is idempotent: keep one record per local day and do not invent missed days.
 export function ensureDailySnapshot(ledger: Ledger, rate: Rate | null, now = new Date()): Ledger {
@@ -159,7 +163,7 @@ export function finalizeSnapshotRate(ledger: Ledger, day: string, rate: Rate | n
 }
 export function resetHistory(ledger: Ledger, rate: Rate | null, now = new Date()): Ledger {
   // Keep current balances and replace every old snapshot with today's baseline.
-  return recordSnapshot({ ...ledger, snapshots: [] }, ledger.assets, rate, now)
+  return recordSnapshot({ ...ledger, assetActivity: resolveAssetActivity(ledger, localDay(now)), snapshots: [] }, ledger.assets, rate, now)
 }
 export function saveAsset(ledger: Ledger, draft: Draft, rate: Rate | null, now = new Date(), newId: string = crypto.randomUUID()): Ledger {
   const source = draft.source.trim()
@@ -169,7 +173,7 @@ export function saveAsset(ledger: Ledger, draft: Draft, rate: Rate | null, now =
   if (ledger.assets.some(asset => asset.id !== draft.id && asset.currency === draft.currency && normalizeSource(asset.source) === normalizeSource(source))) throw new Error('这个币种下已有同名来源，请点击原记录更新余额。')
   const asset: Asset = { id: draft.id ?? newId, source, currency: draft.currency, amountMinor: parseAmount(draft.amount, draft.currency), updatedDay: localDay(now), updatedAt: now.toISOString() }
   const assets = draft.id ? ledger.assets.map(item => item.id === draft.id ? asset : item) : [...ledger.assets, asset]
-  return recordSnapshot(ledger, assets, rate, now)
+  return recordSnapshot({ ...ledger, assetActivity: recordAssetActivity(ledger, asset, localDay(now)) }, assets, rate, now)
 }
 export function removeAsset(ledger: Ledger, id: string, rate: Rate | null, now = new Date()) {
   if (!ledger.assets.some(asset => asset.id === id)) throw new Error('这条资产已不存在。')
@@ -194,7 +198,9 @@ export function correctSnapshotAmount(ledger: Ledger, day: string, assetId: stri
   convertedTotal(totals, 'CNY', snapshot.rate)
   const updated = { ...snapshot, assets, totals, savedAt: now.toISOString() }
   return {
+    ...ledger,
     revision: ledger.revision + 1,
+    assetActivity: resolveAssetActivity(ledger, localDay(now)),
     assets: ledger.snapshots.at(-1)?.day === day ? structuredClone(assets) : ledger.assets,
     snapshots: ledger.snapshots.map(item => item.day === day ? updated : item),
   }

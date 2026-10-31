@@ -8,8 +8,9 @@ import { Icon } from './components/Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
 import { convertedTotal, correctSnapshotAmount, currencyName, investmentSummary, lentOutTotal, localDay, money, ordinaryTotals, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
-import { assetSortPreference, sortAssets } from './domain/assetSort'
+import { assetSortLabels, assetSortPreference, nextAssetSort, sortAssets } from './domain/assetSort'
 import type { AssetSortOrder } from './domain/assetSort'
+import { resolveAssetActivity } from './domain/assetActivity'
 import { changeLedger, readLedger } from './services/database'
 import { cachedRate, cacheRate, fetchHistoricalRate, refreshCurrentRate } from './services/rates'
 import { createSnapshotCheck } from './services/snapshotCheck'
@@ -60,7 +61,7 @@ export default function App() {
   const busy = saving || updating
   const mutationPending = useRef(false)
   const [message, setMessage] = useState('')
-  const [assetSort, setAssetSort] = useState<AssetSortOrder>(() => assetSortPreference(preference('asset-sort', 'asc')))
+  const [assetSort, setAssetSort] = useState<AssetSortOrder>(() => assetSortPreference(preference('asset-sort-mode', 'default')))
   const importInput = useRef<HTMLInputElement>(null)
   const channel = useRef<BroadcastChannel | null>(null)
   const { needRefresh: [needRefresh, setNeedRefresh] } = useRegisterSW({
@@ -253,7 +254,8 @@ export default function App() {
   const investment = investmentSummary(ledger?.assets ?? [], rate)
   const lentOut = lentOutTotal(ledger?.assets ?? [], rate)
   const investmentPercent = investment.returnPercent === null ? '—' : `${investment.returnPercent > 0 ? '+' : ''}${new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(investment.returnPercent)}%`
-  const visibleAssets = sortAssets(ledger?.assets ?? [], assetSort)
+  const assetActivity = useMemo(() => ledger ? resolveAssetActivity(ledger, today) : {}, [ledger, today])
+  const visibleAssets = sortAssets(ledger?.assets ?? [], assetSort, assetActivity, today)
   function assetRows(rows: Asset[]) {
     return rows.map(asset => {
       const previous = ledger?.snapshots.findLast(snapshot => snapshot.day < asset.updatedDay)
@@ -290,7 +292,7 @@ export default function App() {
           {total === null && <p className="notice small">缺少汇率，暂不能合并两种币种；请联网后刷新。</p>}
         </>}
         {tab === 'assets' && <>
-          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><button type="button" className="asset-sort-toggle" aria-label={`当前按名称拼音${assetSort === 'asc' ? '升序' : '降序'}，点击切换为${assetSort === 'asc' ? '降序' : '升序'}`} title="按名称拼音排序" onClick={() => { const next = assetSort === 'asc' ? 'desc' : 'asc'; setAssetSort(next); remember('asset-sort', next) }}>{assetSort === 'asc' ? '升序' : '降序'}</button></div>
+          <div className="section-heading assets-heading"><h2>资产明细 <small>{ledger.assets.length} 项</small></h2><button type="button" className="asset-sort-toggle" aria-label={`当前${assetSort === 'default' ? '默认排序' : `按名称拼音${assetSortLabels[assetSort]}`}，点击切换为${assetSortLabels[nextAssetSort(assetSort)]}`} title="切换排序" onClick={() => { const next = nextAssetSort(assetSort); setAssetSort(next); remember('asset-sort-mode', next) }}>{assetSortLabels[assetSort]}</button></div>
           <section className={`card assets-list${visibleAssets.length ? ' assets-list-filled' : ''}`}>{visibleAssets.length ? assetRows(visibleAssets) : <div className="empty"><img src={emptyAssetsCat} alt="" /><h2>从第一份资产开始</h2><p>点击右下角猫咪，填写来源和当前余额。</p><button className="text-button" onClick={() => edit()}>记录资产</button></div>}</section>
         </>}
         {tab === 'history' && <History ledger={ledger} currency={currency} today={today} currentRate={rate} onCorrect={correctHistorical} onReset={() => void resetHistorical()} busy={busy} />}

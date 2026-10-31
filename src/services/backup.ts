@@ -1,5 +1,7 @@
 import { MAX_AMOUNT_MINOR, localDay, sumAssets, validDay, validRate, convertedTotal } from '../domain/ledger.ts'
 import type { Asset, Ledger, Snapshot } from '../domain/ledger.ts'
+import type { AssetActivity } from '../domain/assetActivity.ts'
+import { ACTIVITY_WINDOW_DAYS } from '../domain/assetActivity.ts'
 function assert(condition: unknown, message = '备份内容无效或不完整。'): asserts condition { if (!condition) throw new Error(message) }
 function object(value: unknown): Record<string, unknown> { assert(value && typeof value === 'object' && !Array.isArray(value)); return value as Record<string, unknown> }
 function timestamp(value: unknown): value is string { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value)) }
@@ -19,6 +21,29 @@ function assets(value: unknown, latestDay: string): Asset[] {
   })
   sumAssets(result)
   return result
+}
+function assetActivity(value: unknown, current: Asset[], today: string): Record<string, AssetActivity> {
+  const entries = Object.entries(object(value))
+  const ids = new Set(current.map(asset => asset.id))
+  assert(entries.length <= current.length)
+  return Object.fromEntries(entries.map(([id, item]) => {
+    assert(ids.has(id))
+    const activity = object(item)
+    assert(validDay(activity.createdDay) && activity.createdDay <= today)
+    const createdDay = activity.createdDay
+    assert(Array.isArray(activity.updates) && activity.updates.length <= ACTIVITY_WINDOW_DAYS)
+    let previousDay = ''; let total = 0
+    const updates = activity.updates.map(item => {
+      const update = object(item)
+      assert(validDay(update.day) && update.day >= createdDay && update.day > previousDay && update.day <= today)
+      assert(Number.isSafeInteger(update.count) && (update.count as number) > 0)
+      previousDay = update.day
+      total += update.count as number
+      assert(Number.isSafeInteger(total))
+      return { day: update.day, count: update.count as number }
+    })
+    return [id, { createdDay, updates }]
+  }))
 }
 export function parseBackup(text: string, today = localDay()): Ledger {
   assert(text.length <= 20_000_000, '备份文件超过 20 MB。')
@@ -46,11 +71,11 @@ export function parseBackup(text: string, today = localDay()): Ledger {
   const current = assets(data.assets, today)
   assert(snapshots.length > 0 || current.length === 0)
   if (snapshots.length) assert(JSON.stringify(current) === JSON.stringify(snapshots.at(-1)!.assets), '当前资产与最后一次快照不一致。')
-  return { revision: 0, assets: current, snapshots }
+  return { revision: 0, assets: current, snapshots, ...(data.assetActivity === undefined ? {} : { assetActivity: assetActivity(data.assetActivity, current, today) }) }
 }
 export function exportBackup(ledger: Ledger) {
   // Export saved state only; never expand calendar gaps into carried records.
-  const data = { revision: ledger.revision, assets: ledger.assets, snapshots: ledger.snapshots }
+  const data = { revision: ledger.revision, assets: ledger.assets, snapshots: ledger.snapshots, ...(ledger.assetActivity === undefined ? {} : { assetActivity: ledger.assetActivity }) }
   return JSON.stringify({ app: 'my-assets', schemaVersion: 1, exportedAt: new Date().toISOString(), data }, null, 2)
 }
 export function downloadBackup(ledger: Ledger) {
