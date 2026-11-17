@@ -68,12 +68,12 @@ test('handles first card, repayment to zero, and unavailable currency conversion
 test('keeps debt amounts neutral and colors only the daily percentage', () => {
   const snapshots = [snapshot('2026-11-16', [asset('信用卡', -100_000)])]
   for (const [amount, text, percent, color, history] of [
-    [-105_000, '1,050', '+5%', ' money-up', snapshots],
-    [-80_000, '800', '-20%', ' money-down', snapshots],
-    [-100_000, '1,000', '0%', '', snapshots],
+    [-105_000, '1,050', '+5.00%', ' money-up', snapshots],
+    [-80_000, '800', '-20.00%', ' money-down', snapshots],
+    [-100_000, '1,000', '0.00%', '', snapshots],
     [-120_000, '1,200', '—', '', []],
     [-120_000, '1,200', '—', '', [snapshot('2026-11-16', [])]],
-    [0, '0', '-100%', ' money-down', snapshots],
+    [0, '0', '-100.00%', ' money-down', snapshots],
     [-100_010, '1,000', '+0.01%', ' money-up', snapshots],
   ] as const) {
     const html = renderToStaticMarkup(createElement(DebtBalance, { assets: [asset('信用卡', amount)], snapshots: [...history], rate, today }))
