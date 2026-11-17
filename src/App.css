@@ -129,8 +129,6 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
 [data-theme=custom] .section-heading h2,
 [data-theme=custom] .rate-history h2,
 [data-theme=custom] .history-chart h2 {
-  font-family: "Songti SC", "STSong", "SimSun", serif;
-  letter-spacing: .06em;
   color: var(--accent);
 }
 [data-theme=custom] .history-chart {
