@@ -18,7 +18,7 @@ export default defineConfig({
       id: base, name: installName, short_name: installName,
       description: '日元与人民币双币种资产统计，保存每日总资产', lang: 'zh-CN',
       start_url: base, scope: base, display: 'standalone',
-      background_color: '#edf0fa', theme_color: '#edf0fa', categories: ['finance', 'productivity'],
+      background_color: '#f3f4f6', theme_color: '#f3f4f6', categories: ['finance', 'productivity'],
       icons: [
         { src: `${base}pwa-192x192-v1.8.0.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
         { src: `${base}pwa-512x512-v1.8.0.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
