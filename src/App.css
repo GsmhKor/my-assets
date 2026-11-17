@@ -39,10 +39,10 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
 }
 :root[data-theme=dark] {
   --wallpaper:
-    radial-gradient(ellipse 85% 65% at 95% -12%, #b9c1cc26 0%, #b9c1cc0d 38%, transparent 72%),
-    radial-gradient(ellipse 85% 80% at -20% 45%, #aab5c023 0%, transparent 70%),
-    radial-gradient(ellipse 80% 65% at 110% 100%, #aeb8c423 0%, transparent 72%),
-    linear-gradient(130deg, #08090b 0%, #24272d 25%, #111316 42%, #353a43 53%, #14161b 69%, #08090b 100%);
+    radial-gradient(ellipse 85% 60% at 105% -8%, #a7b4c46b 0%, #8292a633 38%, transparent 72%),
+    radial-gradient(ellipse 75% 70% at -20% 65%, #8296ad70 0%, #657b9533 38%, transparent 70%),
+    radial-gradient(ellipse 75% 60% at 110% 100%, #a3b2c354 0%, transparent 72%),
+    linear-gradient(130deg, #080a0e 0%, #27313f 20%, #566579 36%, #11151c 46%, #65768a 54%, #283241 67%, #0a0c11 100%);
 }
 body::before {
   content: "";
