@@ -66,34 +66,38 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   color: var(--accent);
 }
 :root[data-theme=custom] {
-  --bg: #25221c;
-  --card: #3c342a;
-  --recessed: #2c261f;
-  --card-border: #8c714b80;
+  --bg: #35312b;
+  --card: #484137;
+  --recessed: #39342c;
+  --card-border: #a58b6280;
   --ink: #eee8dc;
   --asset-name: #dfc99d;
-  --muted: #c2b59f;
-  --border: #64523b;
-  --accent: #d2b477;
-  --selected: #533a2a;
-  --soft: #4a3e30;
+  --muted: #c9bfad;
+  --border: #726249;
+  --accent: #ddc087;
+  --selected: #594331;
+  --soft: #544b3e;
   --danger: #f39c92;
-  --shadow: inset 0 1px 0 #dec08b26, inset 0 -2px 2px #17140f66, 0 10px 24px #00000038;
+  --shadow: inset 0 1px 0 #dec08b26, inset 0 -2px 2px #29231755, 0 10px 24px #00000029;
   --money-up: #ff9990;
   --money-down: #82cba0;
   --wallpaper:
     url('./assets/antique-grain.svg'),
-    radial-gradient(ellipse 85% 60% at 105% -8%, #8e73432e 0%, transparent 72%),
-    radial-gradient(ellipse 75% 70% at -20% 65%, #88673726 0%, transparent 70%),
-    linear-gradient(130deg, #211e19 0%, #322b20 28%, #25221c 49%, #3a3021 68%, #211e19 100%);
+    radial-gradient(ellipse 85% 60% at 105% -8%, #a48c6326 0%, transparent 72%),
+    radial-gradient(ellipse 75% 70% at -20% 65%, #9a815a1f 0%, transparent 70%),
+    linear-gradient(130deg, #302c26 0%, #3d372d 28%, #35312b 49%, #433b2e 68%, #302c26 100%);
   color: var(--ink);
   background: var(--bg);
 }
 [data-theme=custom] .balance-card,
 [data-theme=custom] .card,
 [data-theme=custom] .editor {
-  background: url('./assets/antique-grain.svg'), linear-gradient(145deg, #4b4032 0%, #3c342a 48%, #302b24 100%);
+  background: url('./assets/antique-grain.svg'), linear-gradient(145deg, #534b3f 0%, #484137 48%, #403a31 100%);
+  background-blend-mode: multiply, normal;
   border-radius: 14px;
+}
+[data-theme=custom] body::before {
+  background-blend-mode: multiply, normal, normal, normal;
 }
 [data-theme=custom] .tab-bar {
   border-radius: 18px 18px 0 0;

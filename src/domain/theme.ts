@@ -3,7 +3,7 @@ export type Theme = 'light' | 'dark' | 'custom'
 export const themeDetails = {
   light: { label: '浅色', icon: 'sun', colorScheme: 'light', browserColor: '#f3f4f6' },
   dark: { label: '深色', icon: 'moon', colorScheme: 'dark', browserColor: '#111214' },
-  custom: { label: '定制', icon: 'palette', colorScheme: 'dark', browserColor: '#25221c' },
+  custom: { label: '定制', icon: 'palette', colorScheme: 'dark', browserColor: '#35312b' },
 } as const
 
 export function themePreference(value: string | null): Theme {
