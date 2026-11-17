@@ -6,6 +6,8 @@ import { TotalBalance } from './components/TotalBalance'
 import { DebtBalance } from './components/DebtBalance'
 import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
+import { ThemeToggle } from './components/ThemeToggle'
+import { themeDetails, themePreference } from './domain/theme'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
 import { convertedTotal, correctSnapshotAmount, currencyName, investmentSummary, lentOutTotal, localDay, money, ordinaryTotals, recordSnapshot, removeAsset, resetHistory, saveAsset, sumAssets, validRate } from './domain/ledger'
 import type { Asset, Currency, Draft, Ledger, Rate } from './domain/ledger'
@@ -37,7 +39,7 @@ export default function App() {
   const ledgerRef = useRef<Ledger | null>(null)
   const [loadError, setLoadError] = useState('')
   const [currency, setCurrency] = useState<Currency>(() => preference('currency', 'JPY') === 'CNY' ? 'CNY' : 'JPY')
-  const [dark, setDark] = useState(() => preference('theme', 'dark') === 'dark')
+  const [theme, setTheme] = useState(() => themePreference(preference('theme', 'dark')))
   const [rate, setRate] = useState<Rate | null>(cachedRate)
   const rateRef = useRef(rate)
   rateRef.current = rate
@@ -212,7 +214,12 @@ export default function App() {
     return () => { clearInterval(clock); clearInterval(interval); document.removeEventListener('visibilitychange', foreground); window.removeEventListener('online', foreground); window.removeEventListener('pageshow', foreground) }
   }, [refreshRate, reload, checkDaily])
   useEffect(() => { remember('currency', currency) }, [currency])
-  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.style.colorScheme = dark ? 'dark' : 'light'; remember('theme', dark ? 'dark' : 'light') }, [dark])
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.documentElement.style.colorScheme = themeDetails[theme].colorScheme
+    document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach(meta => { meta.content = themeDetails[theme].browserColor })
+    remember('theme', theme)
+  }, [theme])
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
   function edit(asset?: Asset) { if (ledger && !busy) setEditor({ asset, revision: ledger.revision }) }
   function correctHistorical(day: string, asset: Asset) {
@@ -303,7 +310,7 @@ export default function App() {
           <div className="settings-grid">
             <button type="button" className="card settings-action" disabled={busy} onClick={() => importInput.current?.click()}><Icon name="upload" size={24} /><span>导入</span></button>
             <button type="button" className="card settings-action" onClick={() => downloadBackup(ledger)} disabled={busy}><Icon name="download" size={24} /><span>导出</span></button>
-            <button type="button" className="card settings-action" aria-label={`当前为${dark ? '深色' : '浅色'}模式，点击切换为${dark ? '浅色' : '深色'}模式`} title={`切换为${dark ? '浅色' : '深色'}模式`} onClick={() => setDark(value => !value)}><Icon name={dark ? 'moon' : 'sun'} size={24} /><span>{dark ? '深色' : '浅色'}</span></button>
+            <ThemeToggle theme={theme} onChange={setTheme} />
             <button type="button" className="card settings-action settings-update" disabled={checkingUpdate || updating} aria-label={checkingUpdate ? '正在检查更新' : '查看更新'} aria-busy={checkingUpdate} onClick={() => void checkAppUpdate()}><img src={settingsPrivacyCat} alt="" /><span>{checkingUpdate ? '检查中' : '更新'}</span></button>
           </div>
           <input ref={importInput} type="file" hidden accept=".json,application/json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void restore(file) }} />
