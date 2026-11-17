@@ -65,21 +65,26 @@ test('handles first card, repayment to zero, and unavailable currency conversion
   assert.deepEqual(creditCardDebtSummary(assets, [snapshot('2026-11-16', [asset('信用卡', -100, 'JPY')])], null, today), { total: 100_000, change: null })
 })
 
-test('renders positive yuan debt in red for increases, green for decreases, and neutral otherwise', () => {
+test('keeps debt amounts neutral and colors only the daily percentage', () => {
   const snapshots = [snapshot('2026-11-16', [asset('信用卡', -100_000)])]
-  for (const [amount, text, color, history] of [
-    [-120_000, '1,200', ' money-up', snapshots],
-    [-80_000, '800', ' money-down', snapshots],
-    [-100_000, '1,000', '', snapshots],
-    [-120_000, '1,200', '', []],
+  for (const [amount, text, percent, color, history] of [
+    [-105_000, '1,050', '+5%', ' money-up', snapshots],
+    [-80_000, '800', '-20%', ' money-down', snapshots],
+    [-100_000, '1,000', '0%', '', snapshots],
+    [-120_000, '1,200', '—', '', []],
+    [-120_000, '1,200', '—', '', [snapshot('2026-11-16', [])]],
+    [0, '0', '-100%', ' money-down', snapshots],
+    [-100_010, '1,000', '+0.01%', ' money-up', snapshots],
   ] as const) {
     const html = renderToStaticMarkup(createElement(DebtBalance, { assets: [asset('信用卡', amount)], snapshots: [...history], rate, today }))
     assert.match(html, /class="finance-label">欠款<\/span>/)
-    assert.ok(html.includes(`class="money${color}"`))
-    assert.ok(html.includes(text))
+    assert.match(html, new RegExp(`<b class="money">[^<]*${text}</b>`))
+    assert.ok(html.includes(`class="money debt-change${color}"`))
+    assert.ok(html.includes(`（${percent}）</small>`))
     assert.ok(!html.includes(`-${text}`))
     assert.ok(!html.includes('negative'))
   }
   const html = renderToStaticMarkup(createElement(DebtBalance, { assets: [asset('信用卡', -100, 'JPY')], snapshots, rate: null, today }))
   assert.ok(html.includes('class="money">待汇率</b>'))
+  assert.ok(html.includes('（—）</small>'))
 })
