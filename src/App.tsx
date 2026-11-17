@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import { AssetEditor } from './components/AssetEditor'
 import { History } from './components/History'
 import { TotalBalance } from './components/TotalBalance'
+import { DebtBalance } from './components/DebtBalance'
 import { RateHistory } from './components/RateHistory'
 import { Icon } from './components/Icon'
 import { balanceChange, formatMoneyChange, moneyChangeClass } from './components/balanceChange'
@@ -285,6 +286,7 @@ export default function App() {
             <div className={`finance-lines${currency === 'JPY' ? ' finance-lines-hidden' : ''}`} aria-hidden={currency === 'JPY'}>
               <p className="finance-line"><span className="finance-label">投资</span><b className={`money${investment.cash !== null && investment.cash < 0 ? ' negative' : ''}`}>{money(investment.cash, 'CNY', 0)}</b><small className={`money investment-return${investment.returnPercent === null ? '' : investment.returnPercent > 0 ? ' profit' : investment.returnPercent < 0 ? ' loss' : ''}`}>（{investmentPercent}）</small></p>
               <p className="finance-line"><span className="finance-label">出借</span><b className={`money${lentOut !== null && lentOut < 0 ? ' negative' : ''}`}>{money(lentOut, 'CNY', 0)}</b></p>
+              <DebtBalance assets={ledger.assets} snapshots={ledger.snapshots} rate={rate} today={today} />
             </div>
           </TotalBalance><div className="native-totals"><div><span>日元资产</span><b className={`money${totals.JPY < 0 ? ' negative' : ''}`}>{money(totals.JPY, 'JPY')}</b></div><div><span>人民币资产</span><b className={`money${totals.CNY < 0 ? ' negative' : ''}`}>{money(totals.CNY, 'CNY', 0)}</b></div></div></section>
           <RateHistory snapshots={ledger.snapshots} today={today} fetchedAt={rate?.fetchedAt} refreshing={rateBusy} disabled={busy} onRefresh={() => void refreshRate(true)} />

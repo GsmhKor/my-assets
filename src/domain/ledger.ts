@@ -120,6 +120,17 @@ export function lentOutTotal(assets: readonly Asset[], rate: Rate | null, curren
   const lentOut = assets.filter(asset => asset.source.includes('投资') && !investmentKind(asset))
   return convertedTotal(sumAssets(lentOut), currency, rate)
 }
+export function creditCardDebtTotal(assets: readonly Asset[], rate: Rate | null): number | null {
+  const total = convertedTotal(sumAssets(assets.filter(asset => asset.source.includes('信用卡'))), 'CNY', rate)
+  return total === null ? null : Math.abs(total)
+}
+export function creditCardDebtSummary(assets: readonly Asset[], snapshots: Snapshot[], rate: Rate | null, today: string): { total: number | null; change: number | null } {
+  const total = creditCardDebtTotal(assets, rate)
+  const previous = previousBalanceSnapshot(snapshots, today)
+  // Compare positive debt balances at the same rate: more debt is an increase.
+  const previousTotal = previous ? creditCardDebtTotal(previous.assets, rate) : null
+  return { total, change: total === null || previousTotal === null ? null : total - previousTotal }
+}
 export function money(minor: number | null, currency: Currency, fractionDigits = 0): string {
   if (minor === null) return '待汇率'
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, currencyDisplay: 'code', minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(minor / (currency === 'JPY' ? 1 : 100))
@@ -213,11 +224,14 @@ export function historyBetween(snapshots: Snapshot[], from: string, to: string):
     .map(snapshot => ({ day: snapshot.day, snapshot }))
 }
 
-export function totalChangeAmount(current: number | null, snapshots: Snapshot[], currency: Currency, rate: Rate | null, today: string): number | null {
+function previousBalanceSnapshot(snapshots: Snapshot[], today: string): Snapshot | undefined {
   const yesterday = shiftDay(today, -1)
   // The home balance still compares against the last balance known yesterday.
-  const previous = snapshots.filter(snapshot => snapshot.day <= yesterday)
+  return snapshots.filter(snapshot => snapshot.day <= yesterday)
     .sort((a, b) => a.day.localeCompare(b.day)).at(-1)
+}
+export function totalChangeAmount(current: number | null, snapshots: Snapshot[], currency: Currency, rate: Rate | null, today: string): number | null {
+  const previous = previousBalanceSnapshot(snapshots, today)
   if (current === null || !previous) return null
   // Compare balances at the same exchange rate so a rate refresh is not shown as a deposit or withdrawal.
   const previousTotal = convertedTotal(ordinaryTotals(previous.totals, previous.assets), currency, rate)
