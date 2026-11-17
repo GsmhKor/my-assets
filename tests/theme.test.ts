@@ -21,8 +21,8 @@ test('restores all saved themes, defaulting missing or invalid preferences to cu
   assert.equal(themePreference('custom'), 'custom')
   assert.equal(themePreference(null), 'custom')
   assert.equal(themePreference('unknown'), 'custom')
-  assert.equal(themeDetails.custom.colorScheme, 'dark')
-  assert.equal(themeDetails.custom.browserColor, '#35312b')
+  assert.equal(themeDetails.custom.colorScheme, 'light')
+  assert.equal(themeDetails.custom.browserColor, '#b5a68e')
 })
 
 test('clicking the theme button cycles light, dark, custom, and back to light', () => {
