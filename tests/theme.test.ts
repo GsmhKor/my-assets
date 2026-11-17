@@ -15,14 +15,14 @@ before(async () => {
 })
 after(async () => { await server?.close() })
 
-test('restores existing preferences and custom mode, defaulting missing or invalid preferences to dark', () => {
+test('restores all saved themes, defaulting missing or invalid preferences to custom', () => {
   assert.equal(themePreference('light'), 'light')
   assert.equal(themePreference('dark'), 'dark')
   assert.equal(themePreference('custom'), 'custom')
-  assert.equal(themePreference(null), 'dark')
-  assert.equal(themePreference('unknown'), 'dark')
+  assert.equal(themePreference(null), 'custom')
+  assert.equal(themePreference('unknown'), 'custom')
   assert.equal(themeDetails.custom.colorScheme, 'dark')
-  assert.equal(themeDetails.custom.browserColor, '#141210')
+  assert.equal(themeDetails.custom.browserColor, '#120f12')
 })
 
 test('clicking the theme button cycles light, dark, custom, and back to light', () => {

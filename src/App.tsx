@@ -39,7 +39,7 @@ export default function App() {
   const ledgerRef = useRef<Ledger | null>(null)
   const [loadError, setLoadError] = useState('')
   const [currency, setCurrency] = useState<Currency>(() => preference('currency', 'JPY') === 'CNY' ? 'CNY' : 'JPY')
-  const [theme, setTheme] = useState(() => themePreference(preference('theme', 'dark')))
+  const [theme, setTheme] = useState(() => themePreference(preference('theme', 'custom')))
   const [rate, setRate] = useState<Rate | null>(cachedRate)
   const rateRef = useRef(rate)
   rateRef.current = rate

@@ -66,28 +66,33 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   color: var(--accent);
 }
 :root[data-theme=custom] {
-  --bg: #141210;
-  --card: #25211c;
-  --recessed: #1d1a16;
-  --card-border: #49403380;
+  --bg: #120f12;
+  --card: #2a2025;
+  --recessed: #1b1519;
+  --card-border: #9f7b424d;
   --ink: #eee8dc;
   --asset-name: #dfc99d;
-  --muted: #aaa294;
-  --border: #494033;
-  --accent: #b59a64;
-  --selected: #3d3323;
-  --soft: #352f26;
+  --muted: #b4a69a;
+  --border: #514032;
+  --accent: #c1a16b;
+  --selected: #403022;
+  --soft: #3a2b2d;
   --danger: #f39c92;
-  --shadow: 0 8px 32px #0000001f;
+  --shadow: inset 0 1px 0 #d1aa6a0d, 0 12px 32px #00000033;
   --money-up: #ff9990;
   --money-down: #82cba0;
   --wallpaper:
-    radial-gradient(ellipse 85% 60% at 105% -8%, #b59a6414 0%, transparent 72%),
-    radial-gradient(ellipse 75% 70% at -20% 65%, #8c703c12 0%, transparent 70%),
-    radial-gradient(ellipse 75% 60% at 110% 100%, #b59a640f 0%, transparent 72%),
-    linear-gradient(130deg, #100e0c 0%, #1a1611 24%, #242017 38%, #141210 49%, #211c14 61%, #100f0d 100%);
+    radial-gradient(ellipse 85% 60% at 105% -8%, #632b4552 0%, transparent 72%),
+    radial-gradient(ellipse 75% 70% at -20% 65%, #8b622a24 0%, transparent 70%),
+    radial-gradient(ellipse 75% 60% at 110% 100%, #4f263d38 0%, transparent 72%),
+    linear-gradient(130deg, #120e12 0%, #24161f 28%, #171217 46%, #292017 62%, #130f12 100%);
   color: var(--ink);
   background: var(--bg);
+}
+[data-theme=custom] .balance-card,
+[data-theme=custom] .card,
+[data-theme=custom] .editor {
+  background: linear-gradient(145deg, #33242c 0%, #2a2025 48%, #231c1f 100%);
 }
 [data-theme=custom] .history-chart {
   --native-line: #9ba88b;
