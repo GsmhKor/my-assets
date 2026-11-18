@@ -38,8 +38,8 @@ test('clicking the theme button cycles light, dark, custom, and back to light', 
 test('the button identifies both the current theme and the next selection in every mode', () => {
   for (const [theme, current, next] of [
     ['light', '浅色', '深色'],
-    ['dark', '深色', '定制'],
-    ['custom', '定制', '浅色'],
+    ['dark', '深色', '彩虹'],
+    ['custom', '彩虹', '浅色'],
   ] as const) {
     const html = renderToStaticMarkup(createElement(ThemeToggle, { theme, onChange: () => {} }))
     assert.ok(html.includes(`<span>${current}</span>`))
