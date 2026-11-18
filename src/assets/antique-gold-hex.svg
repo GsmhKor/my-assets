@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="110.852" viewBox="0 0 192 110.852">
+  <title>暗金六边形切面</title>
+  <defs>
+    <!-- Quiet bevels sit beneath the fine gold grain, with no broad metallic glare. -->
+    <g id="quartz">
+      <path fill="currentColor" d="M64 0 32 55.426H-32L-64 0-32-55.426H32Z"/>
+      <path fill="#f3d77b" fill-opacity=".13" d="M-32-55.426H32L19-32.909H-19Z"/>
+      <path fill="#f3d77b" fill-opacity=".07" d="m32-55.426 32 55.426H38L19-32.909Z"/>
+      <path fill="#604515" fill-opacity=".07" d="m64 0-32 55.426-13-22.517L38 0Z"/>
+      <path fill="#604515" fill-opacity=".12" d="M32 55.426H-32l13-22.517h38Z"/>
+      <path fill="#604515" fill-opacity=".05" d="m-32 55.426-32-55.426h26l19 32.909Z"/>
+      <path fill="#f3d77b" fill-opacity=".09" d="m-64 0 32-55.426 13 22.517L-38 0Z"/>
+      <path fill="#f3d77b" fill-opacity=".035" d="M0 0-19-32.909h38L38 0Z"/>
+      <path fill="#604515" fill-opacity=".025" d="M0 0h38L19 32.909h-38Z"/>
+      <path fill="none" stroke="#f3d77b" stroke-opacity=".12" stroke-width=".6" d="M38 0 19 32.909H-19L-38 0-19-32.909H19Z"/>
+      <path fill="none" stroke="#604515" stroke-opacity=".23" stroke-width=".8" d="M64 0 32 55.426H-32L-64 0-32-55.426H32Z"/>
+    </g>
+  </defs>
+  <path fill="#a58a3e" d="M0 0h192v110.852H0Z"/>
+  <g color="#a58a3e">
+    <use href="#quartz" x="0" y="55.426"/>
+    <use href="#quartz" x="192" y="55.426"/>
+  </g>
+  <g color="#aa8e40">
+    <use href="#quartz" x="96" y="0"/>
+    <use href="#quartz" x="96" y="110.852"/>
+  </g>
+</svg>

@@ -66,7 +66,7 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   color: var(--accent);
 }
 :root[data-theme=custom] {
-  --bg: #9e907d;
+  --bg: #a58a3e;
   --card: #d9ccb3;
   --recessed: #cbbba0;
   --card-border: #92734880;
@@ -74,7 +74,7 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   --asset-name: #573e1e;
   --muted: #4e4232;
   --border: #aa9471;
-  --accent: #302313;
+  --accent: #2b2110;
   --selected: #ddc69f;
   --soft: #c5b497;
   --danger: #74271f;
@@ -82,8 +82,8 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   --money-up: #74271f;
   --money-down: #1d472c;
   --wallpaper:
-    url('./assets/antique-grain.svg'),
-    url('./assets/smoky-quartz-hex.svg');
+    url('./assets/antique-gold-grain.svg'),
+    url('./assets/antique-gold-hex.svg');
   color: var(--ink);
   background: var(--bg);
 }
@@ -96,9 +96,9 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
 }
 [data-theme=custom] body::before {
   background-color: var(--bg);
-  background-size: 180px 180px, 192px 110.852px;
+  background-size: 192px 192px, 192px 110.852px;
   background-repeat: repeat;
-  background-blend-mode: multiply, normal;
+  background-blend-mode: soft-light, normal;
 }
 [data-theme=custom] .balance-card:before {
   opacity: .18;
