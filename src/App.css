@@ -66,7 +66,7 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   color: var(--accent);
 }
 :root[data-theme=custom] {
-  --bg: #b5a68e;
+  --bg: #9e907d;
   --card: #d9ccb3;
   --recessed: #cbbba0;
   --card-border: #92734880;
@@ -74,7 +74,7 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   --asset-name: #573e1e;
   --muted: #4e4232;
   --border: #aa9471;
-  --accent: #402b13;
+  --accent: #302313;
   --selected: #ddc69f;
   --soft: #c5b497;
   --danger: #74271f;
@@ -83,9 +83,7 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   --money-down: #1d472c;
   --wallpaper:
     url('./assets/antique-grain.svg'),
-    radial-gradient(ellipse 85% 60% at 105% -8%, #f2e3c344 0%, transparent 72%),
-    radial-gradient(ellipse 75% 70% at -20% 65%, #e6d3ad33 0%, transparent 70%),
-    linear-gradient(130deg, #b6a78f 0%, #c6b79e 28%, #b5a68e 49%, #cfbea1 68%, #b4a58d 100%);
+    url('./assets/smoky-quartz-hex.svg');
   color: var(--ink);
   background: var(--bg);
 }
@@ -97,7 +95,10 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   border-radius: 14px;
 }
 [data-theme=custom] body::before {
-  background-blend-mode: multiply, normal, normal, normal;
+  background-color: var(--bg);
+  background-size: 180px 180px, 192px 110.852px;
+  background-repeat: repeat;
+  background-blend-mode: multiply, normal;
 }
 [data-theme=custom] .balance-card:before {
   opacity: .18;
