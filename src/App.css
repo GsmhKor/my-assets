@@ -66,69 +66,70 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   color: var(--accent);
 }
 :root[data-theme=custom] {
-  --bg: #a58a3e;
-  --card: #d9ccb3;
-  --recessed: #cbbba0;
-  --card-border: #92734880;
-  --ink: #3b3023;
-  --asset-name: #573e1e;
-  --muted: #4e4232;
-  --border: #aa9471;
-  --accent: #21170b;
-  --selected: #ddc69f;
-  --soft: #c5b497;
-  --danger: #74271f;
-  --shadow: inset 0 1px 0 #fff3d566, inset 0 -2px 2px #6b543e29, 0 10px 24px #49321e24;
-  --money-up: #74271f;
-  --money-down: #1d472c;
+  --bg: #111522;
+  --card: #1c2333;
+  --recessed: #151b29;
+  --card-border: #9caadc40;
+  --ink: #edf1ff;
+  --asset-name: #b7e5ee;
+  --muted: #acb6cf;
+  --border: #65729859;
+  --accent: #d9c9ff;
+  --selected: #354364;
+  --soft: #29344b;
+  --danger: #ffaaa9;
+  --shadow: inset 0 1px 0 #ffffff0d, 0 12px 28px #04070f45;
+  --money-up: #ffa3ae;
+  --money-down: #85e1bb;
   --wallpaper:
-    url('./assets/antique-gold-grain.svg'),
-    radial-gradient(ellipse 140% 65% at 10% -20%, #f6dd913d 0%, transparent 72%),
-    linear-gradient(125deg, #9d7d35 0%, #ad8d3c 19%, #d0b36c 36%, #b39446 50%, #a08035 59%, #c3a35a 76%, #9d7d35 100%);
+    url('./assets/iridescent-grain.svg'),
+    linear-gradient(125deg, transparent 24%, #def7ff24 32%, transparent 43%, transparent 64%, #efd6ff14 70%, transparent 79%),
+    radial-gradient(ellipse 85% 75% at 105% -8%, #8155ff38 0%, transparent 70%),
+    radial-gradient(ellipse 80% 65% at -10% 90%, #16c9ce26 0%, transparent 72%),
+    linear-gradient(135deg, #111522 0%, #1a3d6b 20%, #207582 34%, #456855 42%, #8c6547 48%, #873e78 56%, #573e8c 68%, #253d6b 84%, #111522 100%);
   color: var(--ink);
   background: var(--bg);
 }
 [data-theme=custom] .balance-card,
 [data-theme=custom] .card,
 [data-theme=custom] .editor {
-  background: url('./assets/antique-grain.svg'), linear-gradient(145deg, #e2d6be 0%, #d9ccb3 48%, #d1c2a8 100%);
-  background-blend-mode: multiply, normal;
+  background: linear-gradient(145deg, #293248f2 0%, #1c2333f5 52%, #192131f5 100%);
   border-radius: 14px;
 }
 [data-theme=custom] body::before {
   background-color: var(--bg);
-  background-size: 192px 192px, 100% 100%, 100% 100%;
-  background-repeat: repeat, no-repeat, no-repeat;
-  background-blend-mode: soft-light, normal, normal;
+  background-size: 192px 192px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  background-blend-mode: soft-light, screen, screen, screen, normal;
 }
 [data-theme=custom] .balance-card:before {
-  opacity: .18;
-  mix-blend-mode: normal;
+  opacity: .1;
+  mix-blend-mode: soft-light;
 }
 [data-theme=custom] .tab-bar {
   border-radius: 18px 18px 0 0;
-  box-shadow: inset 0 1px 0 #fff3d566, 0 -6px 24px #49321e24;
+  box-shadow: inset 0 1px 0 #c5d2ff1a, 0 -6px 24px #04070f45;
 }
 [data-theme=custom] .primary-button,
 [data-theme=custom] .asset-sort-toggle,
 [data-theme=custom] .currency-toggle {
   border-radius: 12px;
-  box-shadow: inset 0 1px 0 #fff0cf66, inset 0 -2px 0 #7a5c392e;
+  box-shadow: inset 0 1px 0 #c5d2ff24, inset 0 -2px 0 #10172840;
 }
 [data-theme=custom] .history-reset {
-  color: #5b3d26;
-  background: #d7be97;
-  border-color: #9c7b52;
+  color: #f3b1c6;
+  background: #382838;
+  border-color: #906279;
   border-radius: 12px;
-  box-shadow: inset 0 1px 0 #fff0cf66, inset 0 -2px 0 #7a5c392e;
+  box-shadow: inset 0 1px 0 #ffc5df14, inset 0 -2px 0 #10172840;
 }
 [data-theme=custom] .history-reset:not(:disabled):hover {
-  background: #e0c8a4;
+  background: #493246;
 }
 [data-theme=custom] .empty img,
 [data-theme=custom] .settings-update img,
 [data-theme=custom] .tab-bar img {
-  mix-blend-mode: multiply;
+  mix-blend-mode: normal;
 }
 [data-theme=custom] .brand strong,
 [data-theme=custom] .section-heading h1,
@@ -138,7 +139,7 @@ html,body{overscroll-behavior-y:contain}.pull-update{position:fixed;z-index:20;t
   color: var(--accent);
 }
 [data-theme=custom] .history-chart {
-  --native-line: #3c583f;
+  --native-line: #8ce2e7;
 }
 [data-theme=custom] .brand-version,
 [data-theme=custom] .section-heading h2 small,
